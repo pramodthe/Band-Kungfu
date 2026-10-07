@@ -6,6 +6,7 @@
 // (≈ 0.4 s to cover, the next screen is swapped in under full cover, ≈ 0.5 s to uncover). Transform-only animation of one
 // composited layer: no layout work, holds 60 fps at any size. (The layer's element id is #ink.)
 import { noiseBuf } from '../audio/bank.js';
+import { getGamepad } from '../core/gamepad.js';
 
 // ---------------------------------------------------------------- sound (own tiny WebAudio graph; audio.js is battle-only)
 let ac = null;
@@ -47,8 +48,9 @@ const OK = new Set(['Enter', 'NumpadEnter', 'Space', 'KeyJ']), BACK = new Set(['
  * Keyboard + gamepad menu driver, active between start() and stop(). cb: { move(±1), ok(), back() }.
  * Gamepad: d-pad / left stick (repeat 350 ms, then 120 ms), A / Start = ok, B = back. Buttons already held at start()
  * must be released first (the press that opened this screen does not fire again here).
+ * startConfirms: false for the pause menu, where gameplay input owns Start as a pause toggle.
  */
-export function createNav(cb) {
+export function createNav(cb, { startConfirms = true } = {}) {
   let on = false, raf = 0, held = {}, rep = 0, repT = 0;
   const key = (e) => {
     if (!on || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -60,12 +62,14 @@ export function createNav(cb) {
   const poll = (now) => {
     if (!on) return;
     raf = requestAnimationFrame(poll);
-    const p = navigator.getGamepads ? navigator.getGamepads()[0] : null;
-    if (!p) return;
+    const p = getGamepad();
+    if (!p) { held = { 0: false, 1: false, 9: false }; rep = 0; return; }
     const b = (i) => !!(p.buttons[i] && p.buttons[i].pressed);
     const edge = (i) => { const d = b(i), was = held[i]; held[i] = d; return d && was === false; };
-    if (edge(0) || edge(9)) cb.ok();
-    else if (edge(1)) cb.back();
+    const confirm = edge(0), start = edge(9), back = edge(1);
+    if (confirm || (startConfirms && start)) cb.ok();
+    else if (back) cb.back();
+    if (!on) return;
     const y = p.axes[1] || 0, x = p.axes[0] || 0;
     const dir = b(12) || y < -0.5 || x < -0.5 ? -1 : b(13) || y > 0.5 || x > 0.5 ? 1 : b(14) ? -1 : b(15) ? 1 : 0;
     if (!dir) rep = 0;
@@ -76,7 +80,7 @@ export function createNav(cb) {
   return {
     start() {
       on = true; rep = 0; held = {};
-      const p = navigator.getGamepads ? navigator.getGamepads()[0] : null;
+      const p = getGamepad();
       if (p) p.buttons.forEach((q, i) => { held[i] = q.pressed ? true : false; });   // true = wait for release
       for (const i of [0, 1, 9]) if (held[i] === undefined) held[i] = false;
       if (p && (Math.abs(p.axes[1] || 0) > 0.5 || Math.abs(p.axes[0] || 0) > 0.5)) { rep = (p.axes[1] || p.axes[0]) < 0 ? -1 : 1; repT = Infinity; }   // stick held: wait for release
