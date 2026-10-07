@@ -1,0 +1,7 @@
+node_modules/
+.env
+.env.*
+!.env.example
+agent_config.yaml
+.playwright-cli/
+.band-workspaces/

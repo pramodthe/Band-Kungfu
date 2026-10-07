@@ -1,0 +1,15 @@
+{
+  "name": "band-kungfu",
+  "private": true,
+  "type": "module",
+  "description": "Band Kungfu, a browser based voxel crowd brawler with an optional BAND AI run analyst.",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env serve.mjs",
+    "band:analyst": "node --env-file-if-exists=.env agents/analyst.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@band-ai/sdk": "^0.6.0",
+    "openai": "^7.30.0"
+  }
+}
