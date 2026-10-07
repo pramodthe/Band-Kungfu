@@ -11,7 +11,7 @@ import { replay } from './menu.js';
 import { difficulty } from '../core/difficulty.js';
 import { resolveChapter } from '../story/chapters.js';
 
-export const MODE = { story: ['Tournament', '1000 challengers · four masters · one title'], free: ['Practice', 'Endless waves · no knock-out'] };
+export const MODE = { story: ['Tournament', '1000 challengers · four masters · one title'], free: ['Practice', 'Endless waves · no knock-out'], ai: ['Watch AI Play', 'BAND chooses tactics · you can take over'] };
 // keep in step with the controls table (title.js CONTROLS)
 const TIPS = [
   'Tap J for the full combo; press K mid-combo for a charge finisher — a different one after every hit of the string.',
@@ -46,8 +46,9 @@ export function createLoading(el) {
       el.style.setProperty('--acc', ch.accent);
       $('.l-art').style.backgroundImage = c.art ? `url("${c.art}")` : 'none';
       el.classList.remove('ready'); replay(el, 'in');
-      $('.l-ch b').textContent = c.mode === 'story' ? `${C.title.small} · ${C.title.name}` : `${MODE.free[0]} · ${C.title.name}`;
-      $('.l-ch small').textContent = `${c.mode === 'story' ? C.title.sub : MODE.free[1]} · ${d.name}`;
+      const mode = MODE[c.mode] || MODE.free;
+      $('.l-ch b').textContent = c.mode === 'story' ? `${C.title.small} · ${C.title.name}` : `${mode[0]} · ${C.title.name}`;
+      $('.l-ch small').textContent = `${c.mode === 'story' ? C.title.sub : mode[1]} · ${d.name}`;
       $('.l-name h1').textContent = ch.name; $('.l-chip').textContent = ch.role;
       $('.l-wpn').textContent = ch.weapon;
       $('.l-line').textContent = `“${ch.lines.intro}”`;

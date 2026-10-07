@@ -3,11 +3,13 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
 import { bandConfigured, parseRun, sendRunToBand } from './src/server/band.js';
+import { createPlayerService } from './src/server/player.js';
 
 const ROOT = import.meta.dirname, PORT = Number(process.argv[2]) || 8000;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
   '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 const lastSend = new Map();
+const player = createPlayerService();
 const json = (res, status, body) => { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
 
 async function readRun(req) {
@@ -19,10 +21,26 @@ async function readRun(req) {
   return parseRun(JSON.parse(body));
 }
 
-createServer(async (req, res) => {
+const server = createServer(async (req, res) => {
   let p;
   try { p = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); }
   catch { res.writeHead(400); res.end(); return; }
+  if (p === '/api/player/status' && req.method === 'GET') { json(res, 200, player.status()); return; }
+  if (['/api/player/session', '/api/player/observe', '/api/player/stop'].includes(p) && req.method === 'POST') {
+    let sameOrigin = true;
+    try { if (req.headers.origin) sameOrigin = new URL(req.headers.origin).host === req.headers.host; } catch { sameOrigin = false; }
+    if (!sameOrigin || req.headers['content-type']?.split(';')[0] !== 'application/json') { json(res, 403, { error: 'Request rejected' }); return; }
+    try {
+      let body = '', bytes = 0;
+      for await (const chunk of req) { bytes += chunk.length; if (bytes > 10000) throw Error('Invalid request'); body += chunk; }
+      const input = JSON.parse(body);
+      if (!input || typeof input !== 'object' || Array.isArray(input)) throw Error('Invalid request');
+      const result = p.endsWith('/session') ? await player.start()
+        : p.endsWith('/observe') ? player.observe(input.id, input.observation) : player.stop(input.id);
+      json(res, 200, result);
+    } catch (error) { json(res, error.status || 400, { error: error.status ? error.message : 'Invalid player request' }); }
+    return;
+  }
   if (p === '/api/band/status' && req.method === 'GET') {
     json(res, 200, { configured: bandConfigured() });
     return;
@@ -63,3 +81,6 @@ createServer(async (req, res) => {
     res.end(req.method === 'HEAD' ? undefined : body);
   } catch { res.writeHead(404); res.end('Not found'); }
 }).listen(PORT, '127.0.0.1', () => console.log(`Band Kungfu: http://localhost:${PORT}`));
+for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
+  server.close(); player.close().finally(() => process.exit(0));
+});

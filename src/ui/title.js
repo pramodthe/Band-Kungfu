@@ -26,6 +26,7 @@ export const GAME_TAGLINE = 'The Grand Arena';
 const ITEMS = [
   { go: 'story', label: 'Tournament', sub: '1000 challengers · four masters · one title' },
   { go: 'free', label: 'Practice', sub: 'Endless waves in the Dragon Ring · no knock-out' },
+  { go: 'ai', label: 'Watch AI Play', sub: 'BAND chooses tactics · take over at any time' },
   { go: 'controls', label: 'Controls', sub: 'Keyboard · gamepad · touch' },
 ];
 export const CONTROLS = [   // also the pause menu's table (main.js): [action, keyboard, gamepad]

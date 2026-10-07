@@ -39,6 +39,7 @@ import { inkWipe, inkBoot, wiping, createNav, sfx, replay } from './ui/menu.js';
 import { createTouch } from './ui/touch.js';
 import { createResult } from './story/result.js';
 import { difficulty } from './core/difficulty.js';
+import { createAiPlayer } from './ui/ai-player.js';
 
 const params = new URLSearchParams(location.search);
 // mobile quality tier: coarse pointers get 150 enemies, no MSAA / DoF, half-res bloom; ?hq forces full.
@@ -63,6 +64,11 @@ game.combat = createCombat(game);
 game.musou = game.hero.kit.createMusou(game);     // the fighter's Overclock (rebuilt with the kit in startBattle)
 game.story = createStory(game);
 const input = createInput();
+const aiPlayer = createAiPlayer(game);
+on('ai:takeover', () => {
+  const h = game.hero;
+  h.buf = null; h.dodgeBuf = h.jumpBuf = h.musouBuf = 0; // Drop queued AI inputs; the current move follows normal recovery.
+});
 createTouch(input.virt, game, MOBILE);
 
 // ---- render side
@@ -114,6 +120,9 @@ function render(real) {
  *  world rebuilt if another map was on screen), resets every sim module (deterministic from here: both RNGs reseeded,
  *  frame 0), rebuilds the kit views on a fighter change, lets the story spawn the field. */
 function startBattle({ char = DEFAULT_CHAR, mode = 'story', chapter } = {}) {
+  const watch = mode === 'ai';
+  if (watch) mode = 'free';
+  aiPlayer.reset(watch);
   const ch = CHARS[char] || CHARS[DEFAULT_CHAR], CH = resolveChapter(chapter, ch.id);
   setMap(CH.map); world.sync();
   const p = spawnPoint(mode), newKit = ch.kit !== game.hero.kit;
@@ -127,7 +136,7 @@ function startBattle({ char = DEFAULT_CHAR, mode = 'story', chapter } = {}) {
   heroView.reset();
   game.story.reset({ mode, char: ch.id, chapter: CH.id });
   menu.querySelector('.t').innerHTML = `${ch.name}<i>${ch.role}</i>`;
-  menu.querySelector('.sub').textContent = `Paused · ${mode === 'story' ? 'Tournament' : 'Practice'} · ${game.diff.name}`;
+  menu.querySelector('.sub').textContent = `Paused · ${watch ? 'Watch AI Play' : mode === 'story' ? 'Tournament' : 'Practice'} · ${game.diff.name}`;
   menu.style.setProperty('--acc', ch.accent);
   document.title = `${ch.name} — ${GAME_TITLE}`;
   emit('scenario', { mode, char: ch.id, chapter: CH.id });
@@ -169,12 +178,13 @@ const mNav = createNav({ move: (d) => { mFocus(mCur + d); sfx('move'); }, ok: mO
 const setPaused = (v) => {
   paused = v; menu.hidden = !v; hudEl.hidden = v; input.sample();   // sample(): drop keys pressed on the menu
   if (v && document.pointerLockElement) document.exitPointerLock();
+  aiPlayer.pause(v);
   if (v) { mFocus(0); armQuit(false); mNav.start(); } else mNav.stop();
 };
 function sampleInput() {
   const inp = input.sample();
   if (state === 'battle' && inp.pressed.pause && !wiping()) setPaused(!paused);
-  return inp;
+  return paused ? inp : aiPlayer.sample(inp);
 }
 mBtns.forEach((b, i) => {
   b.addEventListener('pointerenter', () => { if (mCur !== i) { mFocus(i); sfx('move'); } });
@@ -263,5 +273,5 @@ const frame = (now) => {
 
 const dev = params.get('go');
 // the page opens under full cover (index.html): the first screen is built and compiled under it, then the wipe sweeps off
-inkBoot(() => dev ? flow.go('battle', { mode: dev === 'free' ? 'free' : 'story', char: params.get('char') || DEFAULT_CHAR, chapter: params.get('ch') || undefined }) : flow.go('title'));
+inkBoot(() => dev ? flow.go('battle', { mode: dev === 'ai' ? 'ai' : dev === 'free' ? 'free' : 'story', char: params.get('char') || DEFAULT_CHAR, chapter: params.get('ch') || undefined }) : flow.go('title'));
 requestAnimationFrame(frame);
