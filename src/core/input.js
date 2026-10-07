@@ -10,8 +10,9 @@
 //   touch   (stage-1 hook) src/ui/touch.js drives `virt`: key(action, down) = the same held / latch a key sets,
 //           stick = [x, y] added to the move vector like the keys, look(yaw, pitch) = rad added to this step's look
 import { on } from './events.js';
+import { getGamepad } from './gamepad.js';
 
-const ACTIONS = ['attack', 'charge', 'jump', 'dodge', 'musou', 'target'];
+const ACTIONS = ['attack', 'charge', 'jump', 'dodge', 'musou', 'target', 'pause'];
 
 const KEYMAP = {
   KeyJ: 'attack', KeyK: 'charge', Space: 'jump', KeyL: 'dodge',
@@ -22,7 +23,7 @@ const MOVEKEYS = {
   KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0],
 };
 // Gamepad (standard mapping): A/× jump, X/□ attack, Y/△ charge, B/○ musou, R1/R2 dodge, L1/L2 camera target / recenter.
-const PADMAP = { 0: 'jump', 2: 'attack', 3: 'charge', 1: 'musou', 5: 'dodge', 7: 'dodge', 4: 'target', 6: 'target' };
+const PADMAP = { 0: 'jump', 2: 'attack', 3: 'charge', 1: 'musou', 5: 'dodge', 7: 'dodge', 4: 'target', 6: 'target', 9: 'pause' };
 const LOOK = {
   mouseYaw: 0.0024, mousePitch: 0.0018,   // rad per px of pointer-lock movement
   keyRate: [0.9, 2.6], keyRamp: 21,        // Q/E: rad/s on the tap → held, steps to reach full rate
@@ -92,8 +93,8 @@ export function createInput() {
   addEventListener('pointermove', (e) => { if (locked()) { dev.lookX += e.movementX; dev.lookY += e.movementY; } });
 
   function pollPad() {
-    const p = navigator.getGamepads ? navigator.getGamepads()[0] : null;
-    if (!p) return null;
+    const p = getGamepad();
+    if (!p) { dev.pad = {}; return null; }
     for (const [btn, a] of Object.entries(PADMAP)) {
       const down = !!(p.buttons[btn] && p.buttons[btn].pressed);
       if (down && !dev.pad[btn]) dev.latch[a] = true;

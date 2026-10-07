@@ -411,7 +411,7 @@ export function createCrowdView(scene, game) {
     }
     return m;
   };
-  const G = crowd.grunts, O = CROWD.officers, A = CROWD.allySlots, GA = G + A;
+  const G = crowd.grunts, O = CROWD.officerSlots, A = CROWD.allySlots, GA = G + A;
   // one body-part set from geos[pre + part] for n soldiers (two arms / thighs / shins each). Voxel sets: the solid-box
   // proxies cast their shadows (cast: every part casts its own — officers); far box sets: one trunk + limbs, all cast
   const parts = (pre, n, cast = false) => ({ hips: mk(geos[pre + 'hips'], n, mat, cast), torso: mk(geos[pre + 'torso'], n, mat, cast || geos.shadow_trunk),
@@ -489,7 +489,8 @@ export function createCrowdView(scene, game) {
     if (key in OM) return OM[key];
     const d = OFFICER_MODELS[key];
     if (!d) return (OM[key] = null);
-    const n = 2, gp = {};
+    // A story can fill every officer slot with the same model (four sentinels, three echoes).
+    const n = CROWD.officerSlots, gp = {};
     for (const k of ['hips', 'torso', 'head', 'arm', 'thigh', 'shin']) gp[k] = sculpt(d.parts[k], d.voxel || V, 0.1);
     const P = { hips: mk(gp.hips, n), torso: mk(gp.torso, n), head: mk(gp.head, n), arm: mk(gp.arm, n * 2), thigh: mk(gp.thigh, n * 2), shin: mk(gp.shin, n * 2) };
     return (OM[key] = { d, P, w: mk(boxesGeometry(d.weapon), n), haft: d.broken ? mk(boxesGeometry(d.broken.haft), n) : null,

@@ -134,7 +134,7 @@ export const BEATS = [
   },
   {
     when: { down: 'dragon' },
-    win: true, waves: false, morale: 1,
+    win: true, waves: false, morale: 1, cue: 'victory',
     banner: { html: '<em>Champion!</em>', sub: 'The title is yours', dur: 260, big: true },
     say: [{ who: 'dragon', text: 'The title is yours…' }, { who: 'mc', text: 'Band Kungfu has a new champion!' }],
   },
@@ -169,6 +169,12 @@ export function script(game, api) {
   ];
   return {
     fx: H.fx,
+    cue(name) {
+      // The director stops stepping boss scripts on victory, so clear their last effects now.
+      if (name !== 'victory') return;
+      H.fx.dark = false;
+      H.fx.warn.length = H.fx.rings.length = H.fx.drops.length = 0;
+    },
     step() { H.step(); for (const b of bosses) b.step(); },
   };
 }
