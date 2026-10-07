@@ -17,6 +17,8 @@ Open [http://localhost:8000](http://localhost:8000). The server listens on `127.
 
 ## BAND AI run analyst
 
+![screenshot](https://raw.githubusercontent.com/pramodthe/Band-Kungfu/master/band.png)
+
 A completed run can be sent to a [BAND](https://band.ai/) room from the result screen. The **Game Reporter** agent posts the run summary and mentions the **Run Analyst** agent, which replies with one specific suggestion for the next attempt. Sending requires an explicit button press. The browser does not receive agent API keys.
 
 1. In BAND, create private Game Reporter and Run Analyst agents, then add both and your user to one room. Save the API keys when they are issued.
