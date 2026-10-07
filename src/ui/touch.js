@@ -48,6 +48,7 @@ export function createTouch(virt, game) {
   function release() {
     for (const [, p] of ptrs) if (p.kind !== 'stick' && p.kind !== 'look' && p.kind !== 'pause') virt.key(p.kind, false);
     ptrs.clear(); virt.stick[0] = virt.stick[1] = 0; stick.classList.remove('on');
+    root.querySelectorAll('.t-btn.down').forEach((b) => b.classList.remove('down'));
   }
   root.addEventListener('pointerdown', (e) => {
     e.preventDefault(); e.stopPropagation();                        // the pad owns the touch (input.js would attack)
@@ -56,8 +57,9 @@ export function createTouch(virt, game) {
     if (b) {
       const a = b.dataset.a;
       b.classList.add('down');
+      ptrs.set(e.pointerId, { kind: a, b });
       if (a === 'pause') { dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape' })); return; }
-      ptrs.set(e.pointerId, { kind: a, b }); virt.key(a, true);
+      virt.key(a, true);
     } else if (e.clientX < innerWidth * 0.45) {
       ptrs.set(e.pointerId, { kind: 'stick', x: e.clientX, y: e.clientY });
       base.style.left = knob.style.left = `${e.clientX}px`; base.style.top = knob.style.top = `${e.clientY}px`;
@@ -72,13 +74,14 @@ export function createTouch(virt, game) {
   });
   const up = (e) => {
     const p = ptrs.get(e.pointerId);
-    root.querySelectorAll('.t-btn.down').forEach((b) => { if (!p || b === p.b || b.dataset.a === 'pause') b.classList.remove('down'); });
     if (!p) return;
+    p.b?.classList.remove('down');
     e.stopPropagation(); ptrs.delete(e.pointerId);
     if (p.kind === 'stick') { setStick(0, 0); stick.classList.remove('on'); }
-    else if (p.kind !== 'look') virt.key(p.kind, false);
+    else if (p.kind !== 'look' && p.kind !== 'pause') virt.key(p.kind, false);
   };
   root.addEventListener('pointerup', up); root.addEventListener('pointercancel', up);
+  root.addEventListener('lostpointercapture', up);
   root.addEventListener('contextmenu', (e) => e.preventDefault());
 
   // visibility + the lit Overclock button, once per animation frame (DOM writes only when something changed)

@@ -70,7 +70,7 @@ Tap attack for a combo. Press charge during a combo for a finisher, or use charg
 - `serve.mjs` and `src/server/band.js`: local server and opt-in BAND relay.
 - `agents/analyst.mjs`: BAND Run Analyst worker.
 
-Run `npm test` for the relay and server checks. A live BAND exchange also requires account credentials and the analyst worker. `?go=story&char=saruabh` starts a tournament run directly; `?go=free` starts practice.
+Run `npm test` for controller input, tournament victory cleanup, relay, and server checks. A live BAND exchange also requires account credentials and the analyst worker. `?go=story&char=saruabh` starts a tournament run directly; `?go=free` starts practice.
 
 ## License
 

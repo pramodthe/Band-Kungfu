@@ -81,7 +81,8 @@ const hud = createHud(document.getElementById('hud'), game, camRig.camera);
 createAudio(game);
 
 function step() {
-  const inp = input.sample();
+  const inp = sampleInput();
+  if (paused) return;
   game.cam.step(game, inp);
   game.hero.step(inp);
   game.combat.step();
@@ -164,11 +165,17 @@ const mOk = () => {
   sfx('back'); mNav.stop();
   inkWipe(() => flow.go('title'));
 };
-const mNav = createNav({ move: (d) => { mFocus(mCur + d); sfx('move'); }, ok: mOk, back: () => setPaused(false) });
+const mNav = createNav({ move: (d) => { mFocus(mCur + d); sfx('move'); }, ok: mOk, back: () => setPaused(false) }, { startConfirms: false });
 const setPaused = (v) => {
   paused = v; menu.hidden = !v; hudEl.hidden = v; input.sample();   // sample(): drop keys pressed on the menu
+  if (v && document.pointerLockElement) document.exitPointerLock();
   if (v) { mFocus(0); armQuit(false); mNav.start(); } else mNav.stop();
 };
+function sampleInput() {
+  const inp = input.sample();
+  if (state === 'battle' && inp.pressed.pause && !wiping()) setPaused(!paused);
+  return inp;
+}
 mBtns.forEach((b, i) => {
   b.addEventListener('pointerenter', () => { if (mCur !== i) { mFocus(i); sfx('move'); } });
   b.addEventListener('click', () => { mFocus(i); mOk(); });
@@ -246,10 +253,10 @@ const frame = (now) => {
   // clamp at 0 too: the first rAF timestamp can precede the performance.now() taken at module init
   const d = Math.min(0.1, Math.max(0, (now - last) / 1000));
   acc += d * (game.timeScale ?? 1); last = now;                                  // story: victory slow-mo
-  if (paused) { acc = 0; input.sample(); return; }
+  if (paused) { acc = 0; sampleInput(); return; }
   if (state !== 'battle') { acc = 0; input.sample(); if (!hold) render(d); return; }     // screens: the field idles behind them
   let n = 0;
-  while (acc >= 1 / 60 && n < 4 && state === 'battle') { step(); acc -= 1 / 60; n++; }
+  while (acc >= 1 / 60 && n < 4 && state === 'battle' && !paused) { step(); acc -= 1 / 60; n++; }
   if (n === 4) acc = 0;
   render();
 };
