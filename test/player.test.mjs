@@ -129,3 +129,54 @@ test('model errors stop control and expose no provider or credential details', a
   assert.doesNotMatch(JSON.stringify(result), /secret-provider-detail|test-player-key/);
   await service.close();
 });
+
+test('public visitors have independent sessions and fairly share one model turn', async () => {
+  const pending = [], called = [];
+  const service = createPlayerService({ env: { ...env, AI_MAX_SESSIONS: '3' }, runtimeFactory: async () => ({
+    decide: ({ observation }) => { called.push(observation.char); return new Promise(r => pending.push(r)); }, close() {} }) });
+  const first = await service.start(), second = await service.start(), third = await service.start();
+  await assert.rejects(service.start(), e => e.status === 409);
+  service.observe(first.id, facts);
+  assert.equal(service.observe(second.id, { ...facts, char: 'vlad' }).state, 'queued');
+  service.observe(third.id, { ...facts, char: 'connector' }); await flush();
+  assert.deepEqual(called, ['arick']);
+  pending.shift()({ ...tactic, reason: 'First visitor tactic' }); await flush();
+  assert.deepEqual(called, ['arick', 'vlad']);
+  assert.equal(service.observe(first.id, facts).tactic.reason, 'First visitor tactic');
+  assert.equal(service.observe(second.id, facts).tactic, null);
+  pending.shift()({ ...tactic, reason: 'Second visitor tactic' }); await flush();
+  assert.deepEqual(called, ['arick', 'vlad', 'connector']);
+  assert.equal(service.observe(second.id, facts).tactic.reason, 'Second visitor tactic');
+  service.stop(first.id);
+  assert.throws(() => service.observe(first.id, facts), e => e.status === 404);
+  assert.ok(service.observe(second.id, facts).tactic);
+  await service.close();
+});
+
+test('hourly allowance stops new turns, preserves the last tactic and resets on time', async () => {
+  let now = 0, calls = 0;
+  const service = createPlayerService({ env: { ...env, AI_MAX_DECISIONS_PER_HOUR: '1' }, now: () => now,
+    runtimeFactory: async () => ({ decide: async () => { calls++; return tactic; }, close() {} }) });
+  const { id } = await service.start(); service.observe(id, facts); await flush();
+  assert.equal(service.observe(id, facts).tactic.goal, 'engage');
+  now = 21000;
+  assert.equal(service.observe(id, facts).state, 'limited'); assert.equal(calls, 1);
+  now = 3599000;
+  assert.throws(() => service.observe(id, facts), e => e.status === 404);
+  const next = await service.start();
+  assert.equal(service.observe(next.id, facts).state, 'limited');
+  now = 3600000;
+  assert.equal(service.observe(next.id, facts).state, 'thinking'); await flush();
+  assert.equal(calls, 2);
+  await service.close();
+});
+
+test('production requires an API model key and admits three public sessions', async () => {
+  const unavailable = createPlayerService({ env: { ...env, NODE_ENV: 'production' } });
+  assert.equal(unavailable.status().configured, false);
+  const service = createPlayerService({ env: { ...env, NODE_ENV: 'production', OPENAI_API_KEY: 'test-model-key' },
+    runtimeFactory: async () => ({ decide: async () => tactic, close() {} }) });
+  await service.start(); await service.start(); await service.start();
+  await assert.rejects(service.start(), e => e.status === 409);
+  await service.close();
+});

@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: band-kungfu
+    runtime: node
+    plan: free
+    region: singapore
+    branch: codex/public-hosting
+    buildCommand: npm ci && npm test
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AI_MAX_SESSIONS
+        value: "3"
+      - key: AI_MAX_DECISIONS_PER_HOUR
+        value: "120"
+      - key: BAND_MODEL
+        value: gpt-4.1-mini
+      - key: PLAYER_AGENT_ID
+        sync: false
+      - key: PLAYER_API_KEY
+        sync: false
+      - key: PLAYER_ROOM_ID
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false

@@ -46,9 +46,9 @@ test('server hides credentials and disables submissions when unconfigured', asyn
       const { port } = probe.address(); probe.close(() => resolve(port));
     });
   });
-  const child = spawn(process.execPath, ['serve.mjs', String(port)], {
+  const child = spawn(process.execPath, ['serve.mjs'], {
     cwd: new URL('..', import.meta.url),
-    env: { ...process.env, BAND_ROOM_ID: '', BAND_REPORTER_API_KEY: '', ANALYST_AGENT_ID: '', PLAYER_AGENT_ID: '', PLAYER_API_KEY: '', PLAYER_ROOM_ID: '' },
+    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', BAND_ROOM_ID: '', BAND_REPORTER_API_KEY: '', ANALYST_AGENT_ID: '', PLAYER_AGENT_ID: '', PLAYER_API_KEY: '', PLAYER_ROOM_ID: '' },
     stdio: 'ignore',
   });
   t.after(() => child.kill());
@@ -59,6 +59,7 @@ test('server hides credentials and disables submissions when unconfigured', asyn
     catch { await new Promise((r) => setTimeout(r, 50)); }
   }
   assert.equal(ready, true);
+  assert.deepEqual(await (await fetch(`${base}/healthz`)).json(), { ok: true });
   assert.deepEqual(await (await fetch(`${base}/api/band/status`)).json(), { configured: false });
   assert.equal((await fetch(`${base}/api/band/session`, { method: 'POST' })).status, 503);
   assert.deepEqual(await (await fetch(`${base}/api/player/status`)).json(), { configured: false });

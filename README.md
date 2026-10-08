@@ -46,7 +46,17 @@ Run `npm ci` and `npm start`; the game server starts the player runtime on deman
 
 The model chooses a target, engage/retreat/Overclock, and when to use a charge finisher. A local controller executes normal movement, combos and reflex dodges at 60 Hz. It never changes health, damage, position or score directly. Decisions are requested at most once every eight seconds with one turn in flight. Tactics expire after 20 seconds; disconnected sessions expire after 30 seconds. Pause stops observation requests, and takeover discards pending decisions. Without a valid model tactic, the AI waits.
 
-This first version plays practice with a model planner and local reflex controller. A single local spectator session owns control; another tab must wait or take over in the current tab. `?go=ai&char=saruabh` starts directly in this mode. BAND and model keys remain on the server. Static hosting cannot run this feature.
+This first version plays practice with a model planner and local reflex controller. Local development defaults to one AI visitor; public hosting defaults to three visitors sharing a fair model queue. Each visitor has its own session and facts, and takeover ends only that visitor's session. `?go=ai&char=saruabh` starts directly in this mode. BAND and model keys remain on the server. Static hosting cannot run this feature.
+
+## Public hosting
+
+`render.yaml` configures a Free Node web service in Singapore, building with `npm ci && npm test`, starting with `npm start`, and checking `/healthz`. Deploy the `codex/public-hosting` branch of your fork. The server uses the hosting provider's `PORT`, and production binds to `0.0.0.0`; local development stays on loopback.
+
+Set `NODE_ENV=production` and provide `OPENAI_API_KEY`, `PLAYER_AGENT_ID`, `PLAYER_API_KEY`, and `PLAYER_ROOM_ID` as server environment secrets. Production requires the API model key; it does not use a desktop CLI login. Set `BAND_MODEL` or `PLAYER_MODEL` to the desired API model. Visitors receive only game observations and tactics, never credentials. Tactic summaries are visible to the game host in the private BAND player room.
+
+Anyone can play and request AI control. Up to `AI_MAX_SESSIONS` visitors (default 3 in production) share one model turn at a time, prioritizing visitors who have waited longest. `AI_MAX_DECISIONS_PER_HOUR` defaults to 120 model decisions per running server instance. When the allowance is exhausted, AI waits and manual play stays available. This is an application usage limit, not a monetary billing cap; limits and in-memory sessions reset on a server restart. Set appropriate provider-side limits for the model account.
+
+The Free hosting plan can sleep after inactivity, so the first load may take longer. Use one server instance for this initial deployment; distributed sessions and autoscaling require persistent shared state.
 
 ## Tournament
 

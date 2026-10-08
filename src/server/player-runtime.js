@@ -61,7 +61,9 @@ export async function createPlayerRuntime(env = process.env) {
     async onEvent(input) {
       if (!jobs.has(input.message.id)) return;
       const tools = playerTools(input.tools);
-      await engine.onEvent({ ...input, tools });
+      const history = { raw: [], length: 0, convert: (converter) => converter.convert([]) };
+      await engine.onEvent({ ...input, tools, history,
+        participantsMessage: null, contactsMessage: null, isSessionBootstrap: true }); // Each visitor's decision uses only its own facts.
     },
   };
   const agent = Agent.create({ adapter, agentId: env.PLAYER_AGENT_ID, apiKey: env.PLAYER_API_KEY,

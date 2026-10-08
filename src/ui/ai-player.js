@@ -25,11 +25,14 @@ export function createAiPlayer(game) {
     root.hidden = !enabled || !battle;
     document.body.classList.toggle('ai-watch', enabled && battle);
     const status = !active ? 'You control' : paused ? 'Paused' : tactic && performance.now() < expires ? state === 'thinking' ? 'AI playing · thinking' : 'AI playing'
+      : state === 'limited' ? 'AI allowance paused' : state === 'queued' ? 'Waiting in queue'
       : state === 'error' ? 'Needs attention' : state === 'connecting' ? 'Connecting' : 'Thinking';
     label.textContent = status;
     reason.textContent = !active ? message || 'Use your normal controls. Let the AI play again whenever you choose.'
       : paused ? 'The fight is paused. Resume to continue watching.'
       : tactic && performance.now() < expires ? tactic.reason.replace(/\b(enemy|target)\s+(?:id\s*)?#?\d+\b/gi, 'the challenger')
+      : state === 'limited' ? 'The shared AI allowance is used up for this hour. You can keep playing manually.'
+      : state === 'queued' ? 'The agent is choosing another visitor’s tactic. Your turn is queued; you can take over at any time.'
       : message || 'Waiting for the agent to choose a tactic. You can take over at any time.';
     toggle.textContent = active ? 'Take over' : 'Let AI play';
   }
@@ -52,6 +55,7 @@ export function createAiPlayer(game) {
       if (current !== generation) return;
       active = false; state = 'error'; message = error.status === 503
         ? 'BAND Player is not set up on this game server. You can play manually.'
+        : error.status === 409 ? 'The AI is serving other visitors. Play manually or try again shortly.'
         : 'Could not connect to BAND Player. You can play manually or retry.';
       draw();
     }
