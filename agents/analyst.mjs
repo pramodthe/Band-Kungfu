@@ -1,6 +1,7 @@
 import { Agent, CodexAdapter, OpenAIAdapter, loadAgentConfigFromEnv } from '@band-ai/sdk';
 import { renderSystemPrompt } from '@band-ai/sdk/runtime';
 import { resolve } from 'node:path';
+import { apiModelOptions } from '../src/server/model-options.js';
 
 const guidance = `A game reporter sends structured run summaries. Analyze only the supplied fields. Give one specific tactical change for the player's next attempt and a short reason based on the numbers. If the data cannot support a diagnosis, say so. Never claim to have seen gameplay footage or hidden events. Reply to the reporter in the same Band room using band_send_message with the reporter's exact @handle from the participant list. Do not post thought or progress events. Keep the reply under 100 words.`;
 const logger = Object.fromEntries(['debug', 'info', 'warn', 'error'].map((level) => [level, (message, context) => {
@@ -11,8 +12,7 @@ const logger = Object.fromEntries(['debug', 'info', 'warn', 'error'].map((level)
 }]));
 const adapter = process.env.OPENAI_API_KEY
   ? new OpenAIAdapter({
-      openAIModel: process.env.BAND_MODEL || 'gpt-4.1-mini',
-      apiKey: process.env.OPENAI_API_KEY,
+      ...apiModelOptions(process.env.BAND_MODEL || 'gpt-6-luna', process.env.OPENAI_API_KEY),
       systemPrompt: renderSystemPrompt({
         agentName: 'Run Analyst',
         agentDescription: 'a game performance analyst for Band Kungfu',

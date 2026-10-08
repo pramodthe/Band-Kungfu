@@ -16,7 +16,7 @@ services:
       - key: AI_MAX_DECISIONS_PER_HOUR
         value: "120"
       - key: BAND_MODEL
-        value: gpt-4.1-mini
+        value: gpt-6-luna
       - key: PLAYER_AGENT_ID
         sync: false
       - key: PLAYER_API_KEY
