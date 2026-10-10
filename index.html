@@ -497,6 +497,21 @@
   #touch-rot b { font: 900 30px/1.2 var(--disp); font-style: italic; text-transform: uppercase; }
   #touch-rot small { font: 600 13px/1 var(--mono); letter-spacing: .12em; color: #fff; }
 </style>
+<style>
+  #ai-player { position: fixed; z-index: 6; left: 50%; top: 1.3rem; transform: translateX(-50%); width: min(46rem, calc(100vw - 2rem));
+    box-sizing: border-box; padding: 1.3rem 1.6rem; border: 1px solid var(--cyan); border-radius: .5rem; background: rgba(5,9,14,.94); color: var(--ink); font-family: var(--sans); }
+  #ai-player[hidden] { display: none; }
+  .ai-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .ai-heading b { font: 800 max(13px,1.5rem) var(--mono); text-transform: uppercase; color: var(--cyan); }
+  .ai-state { font: 700 max(12px,1.3rem) var(--sans); color: var(--green); }
+  .ai-tactic { font-size: max(13px,1.4rem); line-height: 1.4; margin: .8rem 0; overflow-wrap: anywhere; }
+  .ai-actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .ai-toggle { padding: .6rem 1.1rem; border: 1px solid var(--green); background: #103421; border-radius: .3rem; cursor: pointer; font-weight: 800; font-size: max(13px,1.4rem); }
+  .ai-toggle:focus-visible { outline: 2px solid white; outline-offset: 3px; }
+  .ai-actions small { font-size: max(11px,1.15rem); color: var(--dim); }
+  body.ai-watch #hud .h-intro { display: none; }
+  @media (max-height: 500px) { #ai-player { top: 1rem; padding: 1rem; width: min(44rem, calc(100vw - 2rem)); } .ai-actions small { display: none; } }
+</style>
 </head>
 <body class="inkhold">
 <canvas id="c"></canvas>

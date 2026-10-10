@@ -30,6 +30,36 @@ The analyst uses an authenticated local Codex CLI by default. Run `codex login s
 
 The local relay validates a small run summary, rate limits submissions, and serves only allowlisted game files. The summary includes outcome, fighter, difficulty, K.O.s, time, HP, chain, damage taken, and rank. This integration runs on the local Node server; static hosting serves the game but cannot run the relay. A public BAND deployment needs a secured backend and its own abuse controls.
 
+## Watch AI Play
+
+Choose **Watch AI Play**, pick a difficulty and fighter, and watch a BAND-connected model choose tactics in practice mode. The current tactic appears above the arena. Click **Take over**, press **T**, or use movement/attack controls to take control immediately. **Let AI play** hands the fighter back. Esc, gamepad Start, and touch pause still pause the fight.
+
+Create a separate **BAND Player** agent and a private BAND room containing only you and that agent. Add these values to your ignored `.env`:
+
+```dotenv
+PLAYER_AGENT_ID=
+PLAYER_API_KEY=
+PLAYER_ROOM_ID=
+# Optional: otherwise uses BAND_MODEL with OPENAI_API_KEY, or the signed-in Codex CLI.
+PLAYER_MODEL=
+```
+
+Run `npm ci` and `npm start`; the game server starts the player runtime on demand. There is no separate player worker to launch. Existing reporter/analyst settings are independent. Tactic summaries appear in your private player room; watching sends small game observations to the configured model provider and uses its normal model allowance or API billing.
+
+The model chooses a target, engage/retreat/Overclock, and when to use a charge finisher. A local controller executes normal movement, combos and reflex dodges at 60 Hz. It never changes health, damage, position or score directly. Decisions are requested at most once every eight seconds with one turn in flight. Tactics expire after 20 seconds; disconnected sessions expire after 30 seconds. Pause stops observation requests, and takeover discards pending decisions. Without a valid model tactic, the AI waits.
+
+This first version plays practice with a model planner and local reflex controller. Local development defaults to one AI visitor; public hosting defaults to three visitors sharing a fair model queue. Each visitor has its own session and facts, and takeover ends only that visitor's session. `?go=ai&char=saruabh` starts directly in this mode. BAND and model keys remain on the server. Static hosting cannot run this feature.
+
+## Public hosting
+
+`render.yaml` configures a Free Node web service in Singapore, building with `npm ci && npm test`, starting with `npm start`, and checking `/healthz`. Deploy the `codex/public-hosting` branch of your fork. The server uses the hosting provider's `PORT`, and production binds to `0.0.0.0`; local development stays on loopback.
+
+Set `NODE_ENV=production` and provide `OPENAI_API_KEY`, `PLAYER_AGENT_ID`, `PLAYER_API_KEY`, and `PLAYER_ROOM_ID` as server environment secrets. Production requires the API model key; it does not use a desktop CLI login. Set `BAND_MODEL` or `PLAYER_MODEL` to the desired API model. Visitors receive only game observations and tactics, never credentials. Tactic summaries are visible to the game host in the private BAND player room.
+
+Anyone can play and request AI control. Up to `AI_MAX_SESSIONS` visitors (default 3 in production) share one model turn at a time, prioritizing visitors who have waited longest. `AI_MAX_DECISIONS_PER_HOUR` defaults to 120 model decisions per running server instance. When the allowance is exhausted, AI waits and manual play stays available. This is an application usage limit, not a monetary billing cap; limits and in-memory sessions reset on a server restart. Set appropriate provider-side limits for the model account.
+
+The Free hosting plan can sleep after inactivity, so the first load may take longer. Use one server instance for this initial deployment; distributed sessions and autoscaling require persistent shared state.
+
 ## Tournament
 
 | Round | Area | Goal | Master |
@@ -71,8 +101,9 @@ Tap attack for a combo. Press charge during a combo for a finisher, or use charg
 - `src/story/`, `src/world/`, and `src/crowd/`: tournament script, arena, and challengers.
 - `serve.mjs` and `src/server/band.js`: local server and opt-in BAND relay.
 - `agents/analyst.mjs`: BAND Run Analyst worker.
+- `src/ai/`, `src/ui/ai-player.js`, and `src/server/player*.js`: AI observation, normal-input controller, takeover UI, sessions, and the on-demand BAND player runtime.
 
-Run `npm test` for controller input, tournament victory cleanup, relay, and server checks. A live BAND exchange also requires account credentials and the analyst worker. `?go=story&char=saruabh` starts a tournament run directly; `?go=free` starts practice.
+Run `npm test` for controller input, AI tactics/session ownership, tournament victory cleanup, relay, and server checks. A live analyst exchange requires account credentials and the analyst worker. `?go=story&char=saruabh` starts a tournament run directly; `?go=free` starts practice.
 
 ## License
 

@@ -46,9 +46,9 @@ test('server hides credentials and disables submissions when unconfigured', asyn
       const { port } = probe.address(); probe.close(() => resolve(port));
     });
   });
-  const child = spawn(process.execPath, ['serve.mjs', String(port)], {
+  const child = spawn(process.execPath, ['serve.mjs'], {
     cwd: new URL('..', import.meta.url),
-    env: { ...process.env, BAND_ROOM_ID: '', BAND_REPORTER_API_KEY: '', ANALYST_AGENT_ID: '' },
+    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', BAND_ROOM_ID: '', BAND_REPORTER_API_KEY: '', ANALYST_AGENT_ID: '', PLAYER_AGENT_ID: '', PLAYER_API_KEY: '', PLAYER_ROOM_ID: '' },
     stdio: 'ignore',
   });
   t.after(() => child.kill());
@@ -59,10 +59,21 @@ test('server hides credentials and disables submissions when unconfigured', asyn
     catch { await new Promise((r) => setTimeout(r, 50)); }
   }
   assert.equal(ready, true);
+  assert.deepEqual(await (await fetch(`${base}/healthz`)).json(), { ok: true });
   assert.deepEqual(await (await fetch(`${base}/api/band/status`)).json(), { configured: false });
   assert.equal((await fetch(`${base}/api/band/session`, { method: 'POST' })).status, 503);
+  assert.deepEqual(await (await fetch(`${base}/api/player/status`)).json(), { configured: false });
+  const playerPost = (body = '{}', origin) => fetch(`${base}/api/player/session`, { method: 'POST',
+    headers: { 'content-type': 'application/json', ...(origin ? { origin } : {}) }, body });
+  assert.equal((await playerPost()).status, 503);
+  assert.equal((await playerPost('{}', 'https://another-site.example')).status, 403);
+  assert.equal((await playerPost('[]')).status, 400);
+  assert.equal((await playerPost('x'.repeat(10001))).status, 400);
+  assert.equal((await fetch(`${base}/api/player/stop`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: 'wrong-session' }) })).status, 404);
   assert.equal((await fetch(`${base}/.env`)).status, 404);
   assert.equal((await fetch(`${base}/src/server/band.js`)).status, 404);
+  assert.equal((await fetch(`${base}/src/server/player-runtime.js`)).status, 404);
+  assert.equal((await fetch(`${base}/src/ai/controller.js`)).status, 200);
   assert.equal((await fetch(`${base}/index.html`)).status, 200);
   assert.equal((await fetch(`${base}/vendor/three/three.module.js`)).status, 200);
 });
