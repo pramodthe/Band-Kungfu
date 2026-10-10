@@ -6,7 +6,11 @@ import * as THREE from 'three';
 
 const KEY_ELEV = 0.5;
 export const SUN_AZ = 0.314;
-export const SUN_DIR = new THREE.Vector3(Math.sin(SUN_AZ) * Math.cos(KEY_ELEV), Math.sin(KEY_ELEV), Math.cos(SUN_AZ) * Math.cos(KEY_ELEV));
+export const SUN_DIR = new THREE.Vector3(
+  Math.sin(SUN_AZ) * Math.cos(KEY_ELEV),
+  Math.sin(KEY_ELEV),
+  Math.cos(SUN_AZ) * Math.cos(KEY_ELEV),
+);
 
 /**
  * Replace three's fog chunks (must run before any material compiles). THREE.Fog(color, near, far) now means: haze starts
@@ -15,7 +19,8 @@ export const SUN_DIR = new THREE.Vector3(Math.sin(SUN_AZ) * Math.cos(KEY_ELEV), 
  */
 export function installHaze() {
   THREE.ShaderChunk.fog_pars_vertex = '#ifdef USE_FOG\n\tvarying vec3 vFogDir;\n#endif';
-  THREE.ShaderChunk.fog_vertex = '#ifdef USE_FOG\n\tvFogDir = transpose( mat3( viewMatrix ) ) * mvPosition.xyz;\n#endif';
+  THREE.ShaderChunk.fog_vertex =
+    '#ifdef USE_FOG\n\tvFogDir = transpose( mat3( viewMatrix ) ) * mvPosition.xyz;\n#endif';
   THREE.ShaderChunk.fog_pars_fragment = `#ifdef USE_FOG
     uniform vec3 fogColor; varying vec3 vFogDir;
     uniform float fogNear; uniform float fogFar;

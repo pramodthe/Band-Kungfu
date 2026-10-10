@@ -1,93 +1,223 @@
 import { randomUUID } from 'node:crypto';
 import { parseArenaObservation, parseArenaTactic, ARENA_ROLES } from '../ai/arena-protocol.js';
-import { createDecisionBudget } from './decision-budget.js';
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const positive = (n, fallback, max) => Number.isInteger(Number(n)) && Number(n) > 0 && Number(n) <= max ? Number(n) : fallback;
-const configured = (env, role) => { const p = role.toUpperCase(); return Boolean(UUID.test(env[`${p}_AGENT_ID`] || '') && UUID.test(env[`${p}_ROOM_ID`] || '') && env[`${p}_API_KEY`]); };
+import { AI_TIMING } from '../ai/timing.js';
+import { bandAgentConfigured, positiveInteger } from './config.js';
+import { DecisionBudget } from './decision-budget.js';
+import { DecisionQueue } from './decision-queue.js';
+import { HttpError } from './http.js';
+import { RuntimePool } from './runtime-pool.js';
+import { SessionStore } from './session-store.js';
 
 export function parseArenaSettings(raw, env) {
-  if (!raw || !Array.isArray(raw.roles) || !raw.roles.length || raw.roles.length > 2 || new Set(raw.roles).size !== raw.roles.length ||
-      raw.roles.some(r => !ARENA_ROLES.includes(r))) throw Error('Choose a teammate, boss, or both');
+  if (
+    !raw ||
+    !Array.isArray(raw.roles) ||
+    !raw.roles.length ||
+    raw.roles.length > 2 ||
+    new Set(raw.roles).size !== raw.roles.length ||
+    raw.roles.some((role) => !ARENA_ROLES.includes(role))
+  ) {
+    throw new HttpError(400, 'Choose a teammate, boss, or both');
+  }
   let credentials;
   if (raw.model?.source === 'byok') {
-    const m = raw.model;
-    if (!['openai', 'groq'].includes(m.provider) || typeof m.model !== 'string' || !/^[a-zA-Z0-9][\w./:-]{0,95}$/.test(m.model) ||
-        typeof m.apiKey !== 'string' || !/^[\x21-\x7e]{10,512}$/.test(m.apiKey)) throw Error('Enter a provider, model ID, and API key');
-    credentials = { provider: m.provider, model: m.model, apiKey: m.apiKey };
+    const model = raw.model;
+    if (
+      !['openai', 'groq'].includes(model.provider) ||
+      typeof model.model !== 'string' ||
+      !/^[a-zA-Z0-9][\w./:-]{0,95}$/.test(model.model) ||
+      typeof model.apiKey !== 'string' ||
+      !/^[\x21-\x7e]{10,512}$/.test(model.apiKey)
+    ) {
+      throw new HttpError(400, 'Enter a provider, model ID, and API key');
+    }
+    credentials = { provider: model.provider, model: model.model, apiKey: model.apiKey };
   } else if (raw.model?.source === 'hosted') {
-    if (!env.OPENAI_API_KEY) throw Object.assign(Error('Shared model is unavailable. Choose your own API key.'), { status: 503 });
+    if (!env.OPENAI_API_KEY)
+      throw new HttpError(503, 'Shared model is unavailable. Choose your own API key.');
     credentials = { provider: 'openai', model: env.BAND_MODEL || 'gpt-6-luna', apiKey: env.OPENAI_API_KEY };
-  } else throw Error('Choose a model source');
+  } else {
+    throw new HttpError(400, 'Choose a model source');
+  }
   return { roles: [...raw.roles], credentials, byok: raw.model.source === 'byok' };
 }
 
-export function createArenaService({ env = process.env, now = Date.now, budget = createDecisionBudget(positive(env.AI_MAX_DECISIONS_PER_HOUR, 120, 10000), now),
-  runtimeFactory = async role => (await import('./arena-runtime.js')).createArenaRuntime(env, role) } = {}) {
-  const sessions = new Map(), runtimes = new Map(), connecting = new Map();
-  const maxSessions = positive(env.AI_MAX_SESSIONS, 3, 20);
-  let deciding = false, closed = false, order = 0;
-  const end = s => { s.abort?.abort(); s.credentials = null; sessions.delete(s.id); };
-  const expire = () => { for (const s of sessions.values()) if (now() - s.seen > 30000) end(s); };
-  const reaper = setInterval(expire, 5000); reaper.unref();
-  const requireSession = id => { expire(); const s = sessions.get(id); if (!s) throw Object.assign(Error('Arena session ended'), { status: 404 }); return s; };
-  const allowed = s => (s.byok ? s.budget : budget).has();
-  function pump() {
-    expire(); if (closed || deciding) return;
-    const choices = [];
-    for (const s of sessions.values()) if (s.ready && s.active && now() - s.seen < 4500 && allowed(s))
-      for (const role of s.roles) { const r = s.agents[role]; if (r.state !== 'error' && r.observation?.self.hp > 0 && now() - r.lastDecision >= 8000) choices.push({ s, role, r }); }
-    choices.sort((a, b) => a.r.lastOrder - b.r.lastOrder);
-    const next = choices[0]; if (!next) return;
-    const { s, role, r } = next;
-    if (!(s.byok ? s.budget : budget).take()) return;
-    deciding = true; r.lastDecision = now(); r.lastOrder = ++order; r.state = 'thinking'; s.abort = new AbortController();
-    const job = { id: randomUUID(), observation: r.observation, credentials: s.credentials, signal: s.abort.signal };
-    Promise.resolve().then(() => runtimes.get(role).decide(job)).then(raw => {
-      const plan = parseArenaTactic(raw);
-      if (plan.targetId !== null && !job.observation.targets.some(t => t.id === plan.targetId)) throw Error('Unavailable target');
-      expire();
-      if (sessions.get(s.id) === s && s.active && !job.signal.aborted) { r.plan = plan; r.planAt = now(); r.state = 'playing'; }
-    }).catch(() => { if (sessions.get(s.id) === s) { r.plan = null; r.state = 'error'; } })
-      .finally(() => {
-        if (sessions.get(s.id) === s && job.signal.aborted) { r.state = 'waiting'; r.plan = null; r.lastDecision = -Infinity; }
-        job.credentials = null; deciding = false; pump();
-      });
+export class ArenaService {
+  #env;
+  constructor({ env = process.env, now = Date.now, budget, runtimeFactory } = {}) {
+    this.#env = env;
+    this.now = now;
+    this.closed = false;
+    this.order = 0;
+    this.budget =
+      budget || new DecisionBudget(positiveInteger(env.AI_MAX_DECISIONS_PER_HOUR, 120, 10_000), now);
+    this.sessions = new SessionStore({
+      now,
+      maxSessions: positiveInteger(env.AI_MAX_SESSIONS, 3, 20),
+      endedMessage: 'Arena session ended',
+      busyMessage: 'Agent Arena is busy. Try again shortly.',
+    });
+    this.runtimes = new RuntimePool(
+      runtimeFactory ||
+        (async (role) => {
+          const { createArenaRuntime } = await import('./arena-runtime.js');
+          return createArenaRuntime(env, role);
+        }),
+    );
+    this.queue = new DecisionQueue(() => this.#pump());
   }
-  return {
-    status: () => ({ roles: Object.fromEntries(ARENA_ROLES.map(r => [r, configured(env, r)])), hosted: Boolean(env.OPENAI_API_KEY) }),
-    async start(raw) {
-      const settings = parseArenaSettings(raw, env); expire();
-      if (closed || settings.roles.some(r => !configured(env, r))) throw Object.assign(Error('Arena agents are not configured on this server'), { status: 503 });
-      if (sessions.size >= maxSessions) throw Object.assign(Error('Agent Arena is busy. Try again shortly.'), { status: 409 });
-      const s = { id: randomUUID(), ...settings, seen: now(), ready: false, active: true,
-        budget: createDecisionBudget(120, now), agents: Object.fromEntries(settings.roles.map(r => [r, { lastDecision: -Infinity, lastOrder: 0, state: 'waiting', plan: null }])) };
-      sessions.set(s.id, s);
-      try {
-        for (const role of s.roles) if (!runtimes.has(role)) {
-          if (!connecting.has(role)) connecting.set(role, Promise.resolve().then(() => runtimeFactory(role)).finally(() => connecting.delete(role)));
-          const runtime = await connecting.get(role); runtimes.set(role, runtime);
+
+  status() {
+    return {
+      roles: Object.fromEntries(
+        ARENA_ROLES.map((role) => [role, bandAgentConfigured(this.#env, role.toUpperCase())]),
+      ),
+      hosted: Boolean(this.#env.OPENAI_API_KEY),
+    };
+  }
+
+  async start(raw) {
+    const settings = parseArenaSettings(raw, this.#env);
+    if (settings.roles.some((role) => !bandAgentConfigured(this.#env, role.toUpperCase()))) {
+      throw new HttpError(503, 'Arena agents are not configured on this server');
+    }
+    const session = this.sessions.create({
+      ...settings,
+      ready: false,
+      active: true,
+      budget: new DecisionBudget(120, this.now),
+      agents: Object.fromEntries(
+        settings.roles.map((role) => [
+          role,
+          { lastDecision: -Infinity, lastOrder: 0, state: 'waiting', plan: null },
+        ]),
+      ),
+    });
+    try {
+      for (const role of session.roles) await this.runtimes.get(role);
+      if (!this.sessions.owns(session) || this.closed) throw Error('Session ended');
+      session.ready = true;
+      session.seen = this.now();
+      return {
+        id: session.id,
+        roles: session.roles,
+        model: session.credentials.model,
+        provider: session.credentials.provider,
+      };
+    } catch {
+      this.sessions.delete(session);
+      throw new HttpError(502, 'Could not connect arena agents');
+    }
+  }
+
+  observe(id, raw, active = true) {
+    const session = this.sessions.get(id);
+    if (typeof active !== 'boolean' || !raw || typeof raw !== 'object')
+      throw new HttpError(400, 'Invalid arena request');
+    const observations = session.roles.map((role) => [role, parseArenaObservation(raw[role], role)]);
+    for (const [role, observation] of observations) {
+      const previous = session.agents[role].observation;
+      if (previous && observation.frame < previous.frame) throw new HttpError(409, 'Stale observation');
+    }
+    session.seen = this.now();
+    session.active = active;
+    if (!active) session.abort?.abort();
+    for (const [role, observation] of observations) session.agents[role].observation = observation;
+    this.#pump();
+    return {
+      agents: Object.fromEntries(session.roles.map((role) => [role, this.#agentStatus(session, role)])),
+    };
+  }
+
+  stop(id) {
+    this.sessions.delete(this.sessions.get(id));
+    return { stopped: true };
+  }
+
+  async close() {
+    this.closed = true;
+    this.queue.close();
+    this.sessions.close();
+    await this.runtimes.close();
+  }
+
+  #budgetFor(session) {
+    return session.byok ? session.budget : this.budget;
+  }
+
+  #agentStatus(session, role) {
+    const agent = session.agents[role];
+    const remaining = agent.plan ? Math.max(0, AI_TIMING.tacticTtlMs - (this.now() - agent.planAt)) : 0;
+    let state = agent.state;
+    if (!session.active) state = 'paused';
+    else if (!this.#budgetFor(session).has() && !remaining && state !== 'thinking') state = 'limited';
+    return { state, tactic: remaining ? agent.plan : null, validForMs: remaining };
+  }
+
+  #pump() {
+    if (this.closed || this.queue.busy) return;
+    const choices = [];
+    for (const session of this.sessions.values()) {
+      if (
+        !session.ready ||
+        !session.active ||
+        this.now() - session.seen >= AI_TIMING.arenaObservationFreshMs ||
+        !this.#budgetFor(session).has()
+      )
+        continue;
+      for (const role of session.roles) {
+        const agent = session.agents[role];
+        if (
+          agent.state !== 'error' &&
+          agent.observation?.self.hp > 0 &&
+          this.now() - agent.lastDecision >= AI_TIMING.decisionIntervalMs
+        )
+          choices.push({ session, role, agent });
+      }
+    }
+    choices.sort((a, b) => a.agent.lastOrder - b.agent.lastOrder);
+    const next = choices[0];
+    if (!next || !this.#budgetFor(next.session).take()) return;
+    const { session, role, agent } = next;
+    agent.lastDecision = this.now();
+    agent.lastOrder = ++this.order;
+    agent.state = 'thinking';
+    session.abort = new AbortController();
+    const job = {
+      id: randomUUID(),
+      observation: agent.observation,
+      credentials: session.credentials,
+      signal: session.abort.signal,
+    };
+    this.queue.run(() => this.runtimes.ready(role).decide(job), {
+      onSuccess: (raw) => {
+        const plan = parseArenaTactic(raw);
+        if (plan.targetId !== null && !job.observation.targets.some((target) => target.id === plan.targetId))
+          throw Error('Unavailable target');
+        if (this.sessions.owns(session) && session.active && !job.signal.aborted) {
+          agent.plan = plan;
+          agent.planAt = this.now();
+          agent.state = 'playing';
         }
-        if (sessions.get(s.id) !== s || closed) throw Error('Session ended');
-        s.ready = true; s.seen = now(); return { id: s.id, roles: s.roles, model: s.credentials.model, provider: s.credentials.provider };
-      } catch { end(s); throw Object.assign(Error('Could not connect arena agents'), { status: 502 }); }
-    },
-    observe(id, raw, active = true) {
-      const s = requireSession(id);
-      if (typeof active !== 'boolean' || !raw || typeof raw !== 'object') throw Error('Invalid arena request');
-      const observations = s.roles.map(role => [role, parseArenaObservation(raw[role], role)]);
-      for (const [role, o] of observations) if (s.agents[role].observation && o.frame < s.agents[role].observation.frame) throw Object.assign(Error('Stale observation'), { status: 409 });
-      s.seen = now(); s.active = active;
-      if (!active) s.abort?.abort();
-      for (const [role, o] of observations) s.agents[role].observation = o;
-      pump();
-      return { agents: Object.fromEntries(s.roles.map(role => {
-        const r = s.agents[role], remaining = r.plan ? Math.max(0, 20000 - (now() - r.planAt)) : 0;
-        return [role, { state: !active ? 'paused' : !allowed(s) && !remaining && r.state !== 'thinking' ? 'limited' : r.state,
-          tactic: remaining ? r.plan : null, validForMs: remaining }];
-      })) };
-    },
-    stop(id) { end(requireSession(id)); return { stopped: true }; },
-    async close() { closed = true; clearInterval(reaper); for (const s of sessions.values()) end(s);
-      await Promise.allSettled([...connecting.values()]); await Promise.allSettled([...runtimes.values()].map(r => r.close())); },
-  };
+      },
+      onError: () => {
+        if (this.sessions.owns(session)) {
+          agent.plan = null;
+          agent.state = 'error';
+        }
+      },
+      onSettled: () => {
+        if (this.sessions.owns(session) && job.signal.aborted) {
+          agent.state = 'waiting';
+          agent.plan = null;
+          agent.lastDecision = -Infinity;
+        }
+        job.credentials = null;
+      },
+    });
+  }
+}
+
+export function createArenaService(options) {
+  return new ArenaService(options);
 }

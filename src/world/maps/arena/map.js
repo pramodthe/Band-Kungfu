@@ -4,11 +4,21 @@
 //   aisles  Inner Hall      z -108 …  -40   48 m wide
 //   core    Dragon Ring     z  -36 …   40   64 m wide; practice starts near its centre
 // Gates: 'shutterA' (dock → aisles, z ≈ -110) and 'shutterB' (aisles → core, z ≈ -39), 18 m doorways.
-const RACKS = [];                                                   // server rack rows in the aisles: 2 m × 12 m, x = ±13
+const RACKS = []; // server rack rows in the aisles: 2 m × 12 m, x = ±13
 for (const x of [-13, 13]) for (const z of [-98, -80, -62]) RACKS.push([x - 1, z, x + 1, z + 12]);
-const PYLONS = [[-18, -16], [18, -16], [-18, 16], [18, 16]].map(([x, z]) => [x - 1, z - 1, x + 1, z + 1]);
-const TOWER = [-5, 27, 5, 37];                                      // the far end tower
-const DOCK_STACKS = [[-28, -176, -25.2, -163], [25.2, -160, 28, -147], [-28, -140, -25.2, -127], [25.2, -132, 28, -119]];   // containers on the walls
+const PYLONS = [
+  [-18, -16],
+  [18, -16],
+  [-18, 16],
+  [18, 16],
+].map(([x, z]) => [x - 1, z - 1, x + 1, z + 1]);
+const TOWER = [-5, 27, 5, 37]; // the far end tower
+const DOCK_STACKS = [
+  [-28, -176, -25.2, -163],
+  [25.2, -160, 28, -147],
+  [-28, -140, -25.2, -127],
+  [25.2, -132, 28, -119],
+]; // containers on the walls
 
 export default {
   id: 'arena',
@@ -28,7 +38,15 @@ export default {
   ],
   carve: [...RACKS, ...PYLONS, TOWER, ...DOCK_STACKS],
   propCarve: [...RACKS, ...PYLONS, TOWER, ...DOCK_STACKS],
-  route: [[0, -180], [0, -147], [0, -110], [0, -74], [0, -38], [0, 0], [0, 24]],
+  route: [
+    [0, -180],
+    [0, -147],
+    [0, -110],
+    [0, -74],
+    [0, -38],
+    [0, 0],
+    [0, 24],
+  ],
   gates: {
     shutterA: { rect: [-10, -112, 10, -108], open: true, name: 'Gate A' },
     shutterB: { rect: [-10, -41, 10, -37], open: true, name: 'Gate B' },
@@ -36,15 +54,20 @@ export default {
   spawn: { story: { x: 0, z: -174, yaw: 0, tilt: -0.06 }, free: { x: 0, z: 0, yaw: 0, tilt: 0 } },
   freeAllies: { x: 0, z: -12, n: 16, cols: 4 },
   stage: 'dock',
-  hq: [0, 30], hqName: 'RING',
+  hq: [0, 30],
+  hqName: 'RING',
   // render data shared with the world builder (./world.js)
-  racks: RACKS, pylons: PYLONS, tower: TOWER, stacks: DOCK_STACKS,
+  racks: RACKS,
+  pylons: PYLONS,
+  tower: TOWER,
+  stacks: DOCK_STACKS,
   /** Minimap: rack rows, pylons and tower as solid blocks, plus the painted centre lane. */
   minimap(g, X, Y, PPM) {
     g.fillStyle = 'rgba(70,255,138,0.10)';
     g.fillRect(X(1.5), Y(40), 3 * PPM, 222 * PPM);
     g.fillStyle = 'rgba(56,232,255,0.55)';
-    for (const r of [...RACKS, ...PYLONS]) g.fillRect(X(r[2]), Y(r[3]), (r[2] - r[0]) * PPM, (r[3] - r[1]) * PPM);
+    for (const r of [...RACKS, ...PYLONS])
+      g.fillRect(X(r[2]), Y(r[3]), (r[2] - r[0]) * PPM, (r[3] - r[1]) * PPM);
     g.fillStyle = 'rgba(255,62,168,0.8)';
     g.fillRect(X(TOWER[2]), Y(TOWER[3]), (TOWER[2] - TOWER[0]) * PPM, (TOWER[3] - TOWER[1]) * PPM);
     g.fillStyle = 'rgba(200,210,220,0.4)';

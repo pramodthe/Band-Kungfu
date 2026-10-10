@@ -14,20 +14,97 @@
 //   bars       title card pips 1-5: [pressure, bosses, damage]
 //   name       display name, tag: one-word label for tight spots, line: the card's description
 export const DIFFS = [
-  { id: 'easy', name: 'Easy', tag: 'EASY', line: 'Learn the combos and find your rhythm.', bars: [1, 1, 1],
-    gruntHp: 1, officerHp: 0.65, dmg: 0.5, windup: 50, strikers: 1, gap: 1.4, grace: 1.6, armor: false, heal: 1.5, rankBonus: 0, rankMax: 'A' },
-  { id: 'normal', name: 'Normal', tag: 'NORMAL', line: 'The championship as it was meant to be played.', bars: [2, 2, 2],
-    gruntHp: 1.4, officerHp: 1, dmg: 1, windup: 40, strikers: 2, gap: 1, grace: 1, armor: false, heal: 1, rankBonus: 0, rankMax: 'S' },
-  { id: 'hard', name: 'Hard', tag: 'HARD', line: 'Fierce bosses. Read the wind-up and dodge.', bars: [4, 3, 3],
-    gruntHp: 1.8, officerHp: 1.4, dmg: 1.5, windup: 35, strikers: 2, gap: 0.8, grace: 0.6, armor: false, heal: 0.7, rankBonus: 1, rankMax: 'S' },
-  { id: 'extreme', name: 'Extremely Hard', tag: 'EXTREME', line: 'One against a thousand. Every mistake matters.', bars: [5, 5, 5],
-    gruntHp: 2.2, officerHp: 1.9, dmg: 1.9, windup: 30, strikers: 3, gap: 0.6, grace: 0.35, armor: true, heal: 0.6, rankBonus: 2, rankMax: 'S' },
+  {
+    id: 'easy',
+    name: 'Easy',
+    tag: 'EASY',
+    line: 'Learn the combos and find your rhythm.',
+    bars: [1, 1, 1],
+    gruntHp: 1,
+    officerHp: 0.65,
+    dmg: 0.5,
+    windup: 50,
+    strikers: 1,
+    gap: 1.4,
+    grace: 1.6,
+    armor: false,
+    heal: 1.5,
+    rankBonus: 0,
+    rankMax: 'A',
+  },
+  {
+    id: 'normal',
+    name: 'Normal',
+    tag: 'NORMAL',
+    line: 'The championship as it was meant to be played.',
+    bars: [2, 2, 2],
+    gruntHp: 1.4,
+    officerHp: 1,
+    dmg: 1,
+    windup: 40,
+    strikers: 2,
+    gap: 1,
+    grace: 1,
+    armor: false,
+    heal: 1,
+    rankBonus: 0,
+    rankMax: 'S',
+  },
+  {
+    id: 'hard',
+    name: 'Hard',
+    tag: 'HARD',
+    line: 'Fierce bosses. Read the wind-up and dodge.',
+    bars: [4, 3, 3],
+    gruntHp: 1.8,
+    officerHp: 1.4,
+    dmg: 1.5,
+    windup: 35,
+    strikers: 2,
+    gap: 0.8,
+    grace: 0.6,
+    armor: false,
+    heal: 0.7,
+    rankBonus: 1,
+    rankMax: 'S',
+  },
+  {
+    id: 'extreme',
+    name: 'Extremely Hard',
+    tag: 'EXTREME',
+    line: 'One against a thousand. Every mistake matters.',
+    bars: [5, 5, 5],
+    gruntHp: 2.2,
+    officerHp: 1.9,
+    dmg: 1.9,
+    windup: 30,
+    strikers: 3,
+    gap: 0.6,
+    grace: 0.35,
+    armor: true,
+    heal: 0.6,
+    rankBonus: 2,
+    rankMax: 'S',
+  },
 ];
 const KEY = 'band-kungfu.diff';
-const get = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
-const put = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+const get = (k) => {
+  try {
+    return localStorage.getItem(k);
+  } catch {
+    return null;
+  }
+};
+const put = (k, v) => {
+  try {
+    localStorage.setItem(k, v);
+  } catch {}
+};
 
 let cur = DIFFS.find((d) => d.id === get(KEY)) || DIFFS[1];
 
 export const difficulty = () => cur;
-export function setDifficulty(d) { cur = d; put(KEY, d.id); }
+export function setDifficulty(d) {
+  cur = d;
+  put(KEY, d.id);
+}

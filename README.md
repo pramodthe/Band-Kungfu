@@ -6,7 +6,7 @@ The game uses Three.js and a fixed 60 Hz simulation. Its browser code is served 
 
 ## Play locally
 
-Requires Node.js 22.9 or newer and a WebGL2 browser.
+Requires Node.js 22.13 or newer in the 22.x line and a WebGL2 browser.
 
 ```sh
 npm ci
@@ -62,7 +62,7 @@ Agent Arena admits up to `AI_MAX_SESSIONS` visitors, each with up to two roles. 
 
 ## Public hosting
 
-`render.yaml` configures a Free Node web service in Singapore, building with `npm ci && npm test`, starting with `npm start`, and checking `/healthz`. Deploy the `codex/public-hosting` branch of your fork. The server uses the hosting provider's `PORT`, and production binds to `0.0.0.0`; local development stays on loopback.
+`render.yaml` configures a Free Node web service in Singapore. The build installs development tools, runs `npm run check`, then removes development dependencies before starting with `npm start`. Render checks `/healthz`. Deploy the `codex/public-hosting` branch of your fork. The server uses the hosting provider's `PORT`, and production binds to `0.0.0.0`; local development stays on loopback.
 
 Set `NODE_ENV=production` and provide `OPENAI_API_KEY`, `PLAYER_AGENT_ID`, `PLAYER_API_KEY`, and `PLAYER_ROOM_ID` as server environment secrets. Production requires the API model key; it does not use a desktop CLI login. Set `BAND_MODEL` or `PLAYER_MODEL` to the desired API model. Visitors receive only game observations and tactics, never credentials. Tactic summaries are visible to the game host in the private BAND player room.
 
@@ -72,48 +72,50 @@ The Free hosting plan can sleep after inactivity, so the first load may take lon
 
 ## Tournament
 
-| Round | Area | Goal | Master |
-| --- | --- | --- | --- |
-| 1 | Opening Court | 200 K.O.s | **Crane**: staff strikes and a floor storm |
-| 2 | Inner Hall | 450 K.O.s | **Ox**: charges and shock waves |
-| Semi-final | Dragon Ring | 700 K.O.s | **Viper**: falling attacks and reinforcements |
-| Final | Dragon Ring | 1,000 K.O.s | **Dragon**: blade rushes, shadow copies, blackout, final form |
+| Round      | Area          | Goal        | Master                                                        |
+| ---------- | ------------- | ----------- | ------------------------------------------------------------- |
+| 1          | Opening Court | 200 K.O.s   | **Crane**: staff strikes and a floor storm                    |
+| 2          | Inner Hall    | 450 K.O.s   | **Ox**: charges and shock waves                               |
+| Semi-final | Dragon Ring   | 700 K.O.s   | **Viper**: falling attacks and reinforcements                 |
+| Final      | Dragon Ring   | 1,000 K.O.s | **Dragon**: blade rushes, shadow copies, blackout, final form |
 
 Red circles mark incoming area attacks. Leave the circle, dodge through the strike, or jump over travelling shock waves. Clearing a round heals you. Your team fights beside you.
 
-| Fighter | Style | Overclock |
-| --- | --- | --- |
-| Arick | Long range microphone and drone attacks | Sonic Boom |
-| Saruabh | Fast selfie stick and laptop combos | Viral Storm |
-| Vlad | Heavy cart attacks and camera flashes | Rush Hour |
-| Connector | Hops, spins, and copied moves | Giga Connect |
+| Fighter   | Style                                   | Overclock    |
+| --------- | --------------------------------------- | ------------ |
+| Arick     | Long range microphone and drone attacks | Sonic Boom   |
+| Saruabh   | Fast selfie stick and laptop combos     | Viral Storm  |
+| Vlad      | Heavy cart attacks and camera flashes   | Rush Hour    |
+| Connector | Hops, spins, and copied moves           | Giga Connect |
 
 ## Controls
 
-| Action | Keyboard / mouse | Gamepad | Touch |
-| --- | --- | --- | --- |
-| Move | WASD / arrows | Left stick | Left stick |
-| Attack | J / left click | X / □ | ATK |
-| Charge | K / right click | Y / △ | CHG |
-| Jump | Space | A / × | JMP |
-| Dodge | L / Shift | R1 / R2 | DDG |
-| Overclock | I | B / ○ | OC |
-| Camera | Mouse / Q / E | Right stick | Drag right side |
-| Recenter | R | L1 / L2 | — |
-| Pause | Esc | Start | II |
+| Action    | Keyboard / mouse | Gamepad     | Touch           |
+| --------- | ---------------- | ----------- | --------------- |
+| Move      | WASD / arrows    | Left stick  | Left stick      |
+| Attack    | J / left click   | X / □       | ATK             |
+| Charge    | K / right click  | Y / △       | CHG             |
+| Jump      | Space            | A / ×       | JMP             |
+| Dodge     | L / Shift        | R1 / R2     | DDG             |
+| Overclock | I                | B / ○       | OC              |
+| Camera    | Mouse / Q / E    | Right stick | Drag right side |
+| Recenter  | R                | L1 / L2     | —               |
+| Pause     | Esc              | Start       | II              |
 
 Tap attack for a combo. Press charge during a combo for a finisher, or use charge alone for a signature move. Every hit fills the Overclock gauge.
 
 ## Project layout and checks
 
-- `index.html` and `src/ui/`: page, screens, HUD, and controls.
+- `index.html` and `src/ui/`: page shell, stylesheet, screens, HUD, and controls.
 - `src/main.js`, `src/core/`, `src/hero/`, `src/chars/`, and `src/combat/`: game loop, fighters, and combat.
 - `src/story/`, `src/world/`, and `src/crowd/`: tournament script, arena, and challengers.
-- `serve.mjs` and `src/server/band.js`: local server and opt-in BAND relay.
+- `serve.mjs` and `src/server/`: HTTP server, BAND relay, shared sessions, runtime lifecycle, and AI services.
 - `agents/analyst.mjs`: BAND Run Analyst worker.
 - `src/ai/`, `src/ui/ai-player.js`, and `src/server/player*.js`: AI observation, normal-input controller, takeover UI, sessions, and the on-demand BAND player runtime.
 
-Run `npm test` for controller input, AI tactics/session ownership, tournament victory cleanup, relay, and server checks. A live analyst exchange requires account credentials and the analyst worker. `?go=story&char=saruabh` starts a tournament run directly; `?go=free` starts practice.
+Run `npm run check` for lint, formatting, controller input, AI tactics/session ownership, runtime shutdown, per-fighter animation timing, tournament victory cleanup, relay, and server checks. Use `npm run format` to apply formatting. GitHub Actions runs the same checks on pushes and pull requests. See [the architecture guide](docs/architecture.md) for module boundaries and [move tables](docs/movesets.md) for combat data.
+
+A live analyst exchange requires account credentials and the analyst worker. `?go=story&char=saruabh` starts a tournament run directly; `?go=free` starts practice.
 
 ## License
 

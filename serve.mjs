@@ -1,95 +1,15 @@
-// Local game server and opt-in Band relay. Credentials stay on this server.
-import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
-import { resolve, extname, sep } from 'node:path';
-import { bandConfigured, parseRun, sendRunToBand } from './src/server/band.js';
-import { createPlayerService } from './src/server/player.js';
-import { createArenaService } from './src/server/arena.js';
-import { createDecisionBudget } from './src/server/decision-budget.js';
+import { GameServer } from './src/server/game-server.js';
 
-const ROOT = import.meta.dirname, PORT = Number(process.argv[2] || process.env.PORT) || 8000;
-const HOST = process.env.HOST || (process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
-  '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
-const lastSend = new Map();
-const configuredLimit = Number(process.env.AI_MAX_DECISIONS_PER_HOUR);
-const budget = createDecisionBudget(Number.isInteger(configuredLimit) && configuredLimit > 0 && configuredLimit <= 10000 ? configuredLimit : 120);
-const player = createPlayerService({ budget });
-const arena = createArenaService({ budget });
-const json = (res, status, body) => { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
-
-async function readRun(req) {
-  let body = '';
-  for await (const chunk of req) {
-    body += chunk;
-    if (body.length > 2048) throw new Error('Too large');
-  }
-  return parseRun(JSON.parse(body));
+const gameServer = new GameServer({ port: process.argv[2] });
+try {
+  const address = await gameServer.listen();
+  console.log(`Band Kungfu listening on ${gameServer.host}:${address.port}`);
+} catch (error) {
+  await gameServer.close();
+  console.error(`Could not start the game server: ${error.code || 'unknown error'}`);
+  process.exitCode = 1;
 }
 
-const server = createServer(async (req, res) => {
-  let p;
-  try { p = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); }
-  catch { res.writeHead(400); res.end(); return; }
-  if (p === '/healthz' && req.method === 'GET') { json(res, 200, { ok: true }); return; }
-  if (p === '/api/player/status' && req.method === 'GET') { json(res, 200, player.status()); return; }
-  if (p === '/api/arena/status' && req.method === 'GET') { json(res, 200, arena.status()); return; }
-  if (/^\/api\/(player|arena)\/(session|observe|stop)$/.test(p) && req.method === 'POST') {
-    let sameOrigin = true;
-    try { if (req.headers.origin) sameOrigin = new URL(req.headers.origin).host === req.headers.host; } catch { sameOrigin = false; }
-    if (!sameOrigin || req.headers['content-type']?.split(';')[0] !== 'application/json') { json(res, 403, { error: 'Request rejected' }); return; }
-    try {
-      let body = '', bytes = 0;
-      for await (const chunk of req) { bytes += chunk.length; if (bytes > 10000) throw Error('Invalid request'); body += chunk; }
-      const input = JSON.parse(body);
-      if (!input || typeof input !== 'object' || Array.isArray(input)) throw Error('Invalid request');
-      const service = p.startsWith('/api/arena/') ? arena : player;
-      const result = p.endsWith('/session') ? await service.start(input)
-        : p.endsWith('/observe') ? service.observe(input.id, input.observation, input.active) : service.stop(input.id);
-      json(res, 200, result);
-    } catch (error) { json(res, error.status || 400, { error: error.status ? error.message : 'Invalid player request' }); }
-    return;
-  }
-  if (p === '/api/band/status' && req.method === 'GET') {
-    json(res, 200, { configured: bandConfigured() });
-    return;
-  }
-  if (p === '/api/band/session' && req.method === 'POST') {
-    if (!bandConfigured()) { json(res, 503, { error: 'Band is not configured' }); return; }
-    let sameOrigin = true;
-    try { if (req.headers.origin) sameOrigin = new URL(req.headers.origin).host === req.headers.host; }
-    catch { sameOrigin = false; }
-    if (req.headers['content-type']?.split(';')[0] !== 'application/json' ||
-        !sameOrigin) {
-      json(res, 403, { error: 'Request rejected' }); return;
-    }
-    let run;
-    try { run = await readRun(req); }
-    catch { json(res, 400, { error: 'Invalid run summary' }); return; }
-    const from = req.socket.remoteAddress || 'unknown', now = Date.now();
-    if (now - (lastSend.get(from) || 0) < 10000) { json(res, 429, { error: 'Wait a few seconds before sending another run' }); return; }
-    lastSend.set(from, now);
-    try { json(res, 202, await sendRunToBand(run)); }
-    catch (error) { lastSend.delete(from); console.error('Band send failed:', error); json(res, 502, { error: 'Could not send to Band; check server configuration and try again' }); }
-    return;
-  }
-  if (p.startsWith('/api/')) { json(res, 404, { error: 'Not found' }); return; }
-  if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); res.end(); return; }
-  if (p.endsWith('/')) p += 'index.html';
-  // Only publish files required by the browser. Never expose .env, SDKs, or server code.
-  if (p.split('/').some((part) => part === '..' || part.startsWith('.')) ||
-      (p !== '/index.html' &&
-      !(/^\/(src\/(?!server\/)|vendor\/three\/)[\w./-]+\.js$/.test(p)))) {
-    res.writeHead(404); res.end('Not found'); return;
-  }
-  const file = resolve(ROOT, '.' + p);
-  if (file !== ROOT && !file.startsWith(ROOT + sep)) { res.writeHead(403); res.end(); return; }
-  try {
-    const body = await readFile(file);
-    res.writeHead(200, { 'content-type': TYPES[extname(file)] || 'application/octet-stream', 'cache-control': 'no-store' });
-    res.end(req.method === 'HEAD' ? undefined : body);
-  } catch { res.writeHead(404); res.end('Not found'); }
-}).listen(PORT, HOST, () => console.log(`Band Kungfu listening on ${HOST}:${PORT}`));
-for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
-  server.close(); Promise.allSettled([player.close(), arena.close()]).finally(() => process.exit(0));
-});
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.once(signal, () => gameServer.close().finally(() => process.exit(0)));
+}
