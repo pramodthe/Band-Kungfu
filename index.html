@@ -498,19 +498,19 @@
   #touch-rot small { font: 600 13px/1 var(--mono); letter-spacing: .12em; color: #fff; }
 </style>
 <style>
-  #agent-setup { width: min(540px, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); padding: 1.5rem; overflow: auto;
+  #agent-setup { box-sizing: border-box; width: min(540px, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); padding: 1.5rem; overflow: auto;
     background: #101b28; color: #e4f7ff; border: 1px solid #3f9cae; border-radius: .6rem; font: 16px/1.45 system-ui; }
   #agent-setup::backdrop { background: #020912d9; }
   #agent-setup h2 { margin: 0; font-size: 28px; } #agent-setup p { margin: .6rem 0; }
   #agent-setup fieldset { border: 1px solid #395565; border-radius: .4rem; margin: 1rem 0; }
   #agent-setup label { display: block; margin: .65rem 0; } #agent-setup input[type=checkbox] { width: 1.1rem; height: 1.1rem; vertical-align: middle; }
-  #agent-setup select, #agent-setup input:not([type=checkbox]) { display: block; width: 100%; margin-top: .3rem; padding: .55rem;
+  #agent-setup select, #agent-setup input:not([type=checkbox]) { box-sizing: border-box; display: block; width: 100%; margin-top: .3rem; padding: .55rem;
     background: #172b3a; color: #fff; border: 1px solid #678797; border-radius: .25rem; font: inherit; min-height: 40px; }
   #agent-setup small, #agent-setup .privacy { color: #bed2de; font-size: 13px; }
   #agent-setup .setup-state { color: #81e0df; } .setup-actions { display: flex; justify-content: space-between; gap: 1rem; }
   #agent-setup button, #agent-arena button { cursor: pointer; padding: .5rem .9rem; background: #244653; color: #fff; border: 1px solid #77babe; border-radius: .3rem; font: inherit; }
   #agent-setup button { min-height: 40px; }
-  #agent-arena { position: fixed; z-index: 6; left: 50%; top: 1rem; transform: translateX(-50%); width: min(820px, calc(100vw - 2rem));
+  #agent-arena { box-sizing: border-box; position: fixed; z-index: 6; left: 50%; top: 1rem; transform: translateX(-50%); width: min(820px, calc(100vw - 2rem));
     padding: .8rem; color: #e4f7ff; background: #0a1726e8; border: 1px solid #529cae; border-radius: .5rem; font: 14px/1.4 system-ui; }
   #agent-arena[hidden], #agent-setup [hidden], #agent-arena [hidden] { display: none; }
   body.ai-arena #hud .h-intro, body.ai-arena #hud .h-target, body.ai-arena #hud .h-dlg { display: none; }
