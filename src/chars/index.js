@@ -45,7 +45,15 @@ export const DEFAULT_CHAR = CHAR_ORDER[0];
 
 /** Paint a char's 20×20 portrait into a canvas (width/height 20; scale it with CSS, image-rendering: pixelated). */
 export function paintPortrait(cv, char) {
-  const g = cv.getContext('2d'), { face, pal } = char.portrait;
+  const g = cv.getContext('2d'),
+    { face, pal } = char.portrait;
   g.clearRect(0, 0, cv.width, cv.height);
-  face.forEach((row, y) => [...row].forEach((ch, x) => { if (pal[ch]) { g.fillStyle = pal[ch]; g.fillRect(x, y, 1, 1); } }));
+  face.forEach((row, y) =>
+    [...row].forEach((ch, x) => {
+      if (pal[ch]) {
+        g.fillStyle = pal[ch];
+        g.fillRect(x, y, 1, 1);
+      }
+    }),
+  );
 }

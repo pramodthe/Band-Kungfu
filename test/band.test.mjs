@@ -8,8 +8,13 @@ const reporterKey = 'test-reporter-key';
 const roomId = '11111111-1111-4111-8111-111111111111';
 const analystId = '22222222-2222-4222-8222-222222222222';
 const env = { BAND_REPORTER_API_KEY: reporterKey, BAND_ROOM_ID: roomId, ANALYST_AGENT_ID: analystId };
-const run = { win: true, char: 'saruabh', chapter: 'championship', diff: 'normal',
-  stats: { kos: 1000, time: 900, hpMax: 100, maxChain: 57, dmg: 38.4, rank: 'A' } };
+const run = {
+  win: true,
+  char: 'saruabh',
+  chapter: 'championship',
+  diff: 'normal',
+  stats: { kos: 1000, time: 900, hpMax: 100, maxChain: 57, dmg: 38.4, rank: 'A' },
+};
 
 test('run parser keeps bounded game fields and rejects injected values', () => {
   assert.deepEqual(parseRun({ ...run, extra: 'ignored' }), { ...run, stats: { ...run.stats, dmg: 38 } });
@@ -23,9 +28,12 @@ test('relay mentions the actual active analyst and keeps the API key in headers'
   const calls = [];
   const fetchImpl = async (url, options) => {
     calls.push({ url, options });
-    return { ok: true, json: async () => ({ data: [
-      { id: analystId, name: 'Run Analyst', handle: 'player/run-analyst', status: 'inactive' },
-    ] }) };
+    return {
+      ok: true,
+      json: async () => ({
+        data: [{ id: analystId, name: 'Run Analyst', handle: 'player/run-analyst', status: 'inactive' }],
+      }),
+    };
   };
   const result = await sendRunToBand(parseRun(run), { env, fetchImpl });
   assert.match(result.runId, /^[0-9a-f-]{36}$/);
@@ -42,41 +50,90 @@ test('relay mentions the actual active analyst and keeps the API key in headers'
 
 test('server hides credentials and disables submissions when unconfigured', async (t) => {
   const port = await new Promise((resolve, reject) => {
-    const probe = createServer().once('error', reject).listen(0, '127.0.0.1', () => {
-      const { port } = probe.address(); probe.close(() => resolve(port));
-    });
+    const probe = createServer()
+      .once('error', reject)
+      .listen(0, '127.0.0.1', () => {
+        const { port } = probe.address();
+        probe.close(() => resolve(port));
+      });
   });
   const child = spawn(process.execPath, ['serve.mjs'], {
     cwd: new URL('..', import.meta.url),
-    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', BAND_ROOM_ID: '', BAND_REPORTER_API_KEY: '', ANALYST_AGENT_ID: '', PLAYER_AGENT_ID: '', PLAYER_API_KEY: '', PLAYER_ROOM_ID: '' },
+    env: {
+      ...process.env,
+      PORT: String(port),
+      HOST: '127.0.0.1',
+      BAND_ROOM_ID: '',
+      BAND_REPORTER_API_KEY: '',
+      ANALYST_AGENT_ID: '',
+      PLAYER_AGENT_ID: '',
+      PLAYER_API_KEY: '',
+      PLAYER_ROOM_ID: '',
+    },
     stdio: 'ignore',
   });
   t.after(() => child.kill());
   const base = `http://127.0.0.1:${port}`;
   let ready = false;
   for (let i = 0; i < 40; i++) {
-    try { const r = await fetch(`${base}/api/band/status`); ready = r.ok; if (ready) break; }
-    catch { await new Promise((r) => setTimeout(r, 50)); }
+    try {
+      const r = await fetch(`${base}/api/band/status`);
+      ready = r.ok;
+      if (ready) break;
+    } catch {
+      await new Promise((r) => setTimeout(r, 50));
+    }
   }
   assert.equal(ready, true);
   assert.deepEqual(await (await fetch(`${base}/healthz`)).json(), { ok: true });
   assert.deepEqual(await (await fetch(`${base}/api/band/status`)).json(), { configured: false });
   assert.equal((await fetch(`${base}/api/band/session`, { method: 'POST' })).status, 503);
   assert.deepEqual(await (await fetch(`${base}/api/player/status`)).json(), { configured: false });
-  const playerPost = (body = '{}', origin) => fetch(`${base}/api/player/session`, { method: 'POST',
-    headers: { 'content-type': 'application/json', ...(origin ? { origin } : {}) }, body });
+  const playerPost = (body = '{}', origin) =>
+    fetch(`${base}/api/player/session`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...(origin ? { origin } : {}) },
+      body,
+    });
   assert.equal((await playerPost()).status, 503);
   assert.equal((await playerPost('{}', 'https://another-site.example')).status, 403);
   assert.equal((await playerPost('[]')).status, 400);
   assert.equal((await playerPost('x'.repeat(10001))).status, 400);
-  assert.equal((await fetch(`${base}/api/player/stop`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: 'wrong-session' }) })).status, 404);
+  assert.equal(
+    (
+      await fetch(`${base}/api/player/stop`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: 'wrong-session' }),
+      })
+    ).status,
+    404,
+  );
   assert.equal((await fetch(`${base}/.env`)).status, 404);
   assert.equal((await fetch(`${base}/src/server/band.js`)).status, 404);
   assert.equal((await fetch(`${base}/src/server/player-runtime.js`)).status, 404);
   assert.equal((await fetch(`${base}/src/server/arena-runtime.js`)).status, 404);
-  assert.deepEqual(await (await fetch(`${base}/api/arena/status`)).json(), { roles: { ally: false, boss: false }, hosted: false });
-  const arenaPost = (body, origin) => fetch(`${base}/api/arena/session`, { method: 'POST', headers: { 'content-type': 'application/json', ...(origin ? { origin } : {}) }, body });
-  assert.equal((await arenaPost(JSON.stringify({ roles: ['ally'], model: { source: 'byok', provider: 'openai', model: 'gpt-6-luna', apiKey: 'test-key-123' } }))).status, 503);
+  assert.deepEqual(await (await fetch(`${base}/api/arena/status`)).json(), {
+    roles: { ally: false, boss: false },
+    hosted: false,
+  });
+  const arenaPost = (body, origin) =>
+    fetch(`${base}/api/arena/session`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...(origin ? { origin } : {}) },
+      body,
+    });
+  assert.equal(
+    (
+      await arenaPost(
+        JSON.stringify({
+          roles: ['ally'],
+          model: { source: 'byok', provider: 'openai', model: 'gpt-6-luna', apiKey: 'test-key-123' },
+        }),
+      )
+    ).status,
+    503,
+  );
   assert.equal((await arenaPost('{}', 'https://another-site.example')).status, 403);
   assert.equal((await arenaPost('x'.repeat(10001))).status, 400);
   assert.equal((await fetch(`${base}/src/ai/controller.js`)).status, 200);

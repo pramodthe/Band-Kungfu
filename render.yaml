@@ -12,9 +12,9 @@ services:
       - key: NODE_ENV
         value: production
       - key: AI_MAX_SESSIONS
-        value: "3"
+        value: '3'
       - key: AI_MAX_DECISIONS_PER_HOUR
-        value: "120"
+        value: '120'
       - key: BAND_MODEL
         value: gpt-6-luna
       - key: PLAYER_AGENT_ID

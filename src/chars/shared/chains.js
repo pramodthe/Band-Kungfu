@@ -6,15 +6,27 @@ import { chain } from '../../hero/secondary.js';
 import { HV } from '../../hero/model.js';
 
 export function createChains(scene, rig, mat) {
-  const j = rig.joints, chains = [];
+  const j = rig.joints,
+    chains = [];
   const cols = {};
-  for (const k of ['head', 'chest', 'hips', 'thighL', 'thighR', 'kneeL', 'kneeR']) cols[k] = { c: new THREE.Vector3(), r: 0 };
-  const setCol = (k, joint, x, y, z, r) => { cols[k].c.set(x, y, z).applyMatrix4(joint.matrixWorld); cols[k].r = r; };
-  const back = new THREE.Vector3(), _bq = new THREE.Quaternion();
+  for (const k of ['head', 'chest', 'hips', 'thighL', 'thighR', 'kneeL', 'kneeR'])
+    cols[k] = { c: new THREE.Vector3(), r: 0 };
+  const setCol = (k, joint, x, y, z, r) => {
+    cols[k].c.set(x, y, z).applyMatrix4(joint.matrixWorld);
+    cols[k].r = r;
+  };
+  const back = new THREE.Vector3(),
+    _bq = new THREE.Quaternion();
   let t = 0;
   return {
-    add(joint, o) { const c = chain(scene, o.mat || mat, joint, o); chains.push(c); return c; },
-    reset() { for (const c of chains) c.reset(); },
+    add(joint, o) {
+      const c = chain(scene, o.mat || mat, joint, o);
+      chains.push(c);
+      return c;
+    },
+    reset() {
+      for (const c of chains) c.reset();
+    },
     update(dt) {
       t += dt;
       j.root.updateMatrixWorld(true);

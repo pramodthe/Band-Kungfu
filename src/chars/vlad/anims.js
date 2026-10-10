@@ -11,26 +11,64 @@ import { lungeAt } from '../../hero/moveset.js';
 import { MOVES } from './moves.js';
 
 const R = Math.PI / 180;
-const CAM = [0.3, 1.14, 0.16, 12, -8, 0];                             // the camera at rest: chest high on his left
+const CAM = [0.3, 1.14, 0.16, 12, -8, 0]; // the camera at rest: chest high on his left
 const HOLD = { spear: [-0.1, 1.0, 0.32, 0, 0, 0], spearL: CAM, dual: 1, gripR: 0, gripL: 0 };
 export const BR = { ...STANCE, ...HOLD, hipsR: [0, -8, 0], chest: [8, 4, 0], hips: [0, 0.88, 0] };
-const ENTRY = { n2: 'n1', n3: 'n2', n4: 'n3', n5: 'n4', n6: 'n5', c2: 'n1', c3: 'n2', c4: 'n3', c5: 'n4', c6: 'n5' };
+const ENTRY = {
+  n2: 'n1',
+  n3: 'n2',
+  n4: 'n3',
+  n5: 'n4',
+  n6: 'n5',
+  c2: 'n1',
+  c3: 'n2',
+  c4: 'n3',
+  c5: 'n4',
+  c6: 'n5',
+};
 const { clipF } = createClipKit(MOVES, ENTRY, BR);
 const L = (id, f) => lungeAt(MOVES[id], f);
 const lead = (id, f, z = 0.2, x = 0.2, yaw = 12) => [x, 0.08, 0.3 + z + L(id, f), 0, yaw];
 
 /** The cart level in front of him, handle `z` m ahead (a shove when z is large), nose lifted `elev`°. */
-const push = (z, elev = 0, e) => ({ spear: [-0.08, 1.0 + Math.max(0, elev) * 0.004, z, 0, elev, 0], chest: [10 + z * 12, 0, 0], hipsR: [0, 0, 0], hips: [0, 0.86, 0.04 + z * 0.1], ...e });
+const push = (z, elev = 0, e) => ({
+  spear: [-0.08, 1.0 + Math.max(0, elev) * 0.004, z, 0, elev, 0],
+  chest: [10 + z * 12, 0, 0],
+  hipsR: [0, 0, 0],
+  hips: [0, 0.86, 0.04 + z * 0.1],
+  ...e,
+});
 /** The cart swung out at heading `yaw` (° off his facing, + = left), lifted clear of the floor, body twisted `tw`°. */
 const out = (yaw, elev = 6, tw = yaw * 0.4, e) => ({
   spear: [Math.sin(yaw * R) * 0.36, 1.14, 0.05 + Math.cos(yaw * R) * 0.36, yaw, elev, 0],
-  chest: [6, tw, 0], hipsR: [0, tw * 0.8, 0], spine: [6, tw * 0.3, 0], ...e });
-const OVER = { spear: [0, 1.5, 0.12, 0, 78, 0], chest: [-12, 0, 0], head: [-8, 0, 0], hipsR: [0, 0, 0], hips: [0, 0.92, 0] };
-const DOWN = (z = 0.5, elev = -24) => ({ spear: [0, 0.98, z, 0, elev, 0], chest: [24, 0, 0], hips: [0, 0.76, 0.1], hipsR: [0, 0, 0] });
+  chest: [6, tw, 0],
+  hipsR: [0, tw * 0.8, 0],
+  spine: [6, tw * 0.3, 0],
+  ...e,
+});
+const OVER = {
+  spear: [0, 1.5, 0.12, 0, 78, 0],
+  chest: [-12, 0, 0],
+  head: [-8, 0, 0],
+  hipsR: [0, 0, 0],
+  hips: [0, 0.92, 0],
+};
+const DOWN = (z = 0.5, elev = -24) => ({
+  spear: [0, 0.98, z, 0, elev, 0],
+  chest: [24, 0, 0],
+  hips: [0, 0.76, 0.1],
+  hipsR: [0, 0, 0],
+});
 /** The camera up at his eye, aimed `yaw`° off his facing. */
-const SHOOT = (yaw = 0, e) => ({ spearL: [0.1 + Math.sin(yaw * R) * 0.1, 1.55, 0.3, yaw, 0, 0], head: [4, yaw * 0.5, 0], chest: [4, -14 + yaw * 0.3, 0], hipsR: [0, -12, 0],
-  spear: [-0.3, 1.0, 0.18, -14, 0, 0], ...e });
-const B = {};                                     // = BR (a key with no overrides)
+const SHOOT = (yaw = 0, e) => ({
+  spearL: [0.1 + Math.sin(yaw * R) * 0.1, 1.55, 0.3, yaw, 0, 0],
+  head: [4, yaw * 0.5, 0],
+  chest: [4, -14 + yaw * 0.3, 0],
+  hipsR: [0, -12, 0],
+  spear: [-0.3, 1.0, 0.18, -14, 0, 0],
+  ...e,
+});
+const B = {}; // = BR (a key with no overrides)
 
 function attacks() {
   const C = {};
@@ -84,8 +122,15 @@ function attacks() {
     [54, { spin: -360 }],
   ]);
   // ---- C1 Cart Surf: run-up (0–12), hop on (14: both feet up on the chassis), ride (16–44), drift spin off it (48)
-  const ride = (f, e) => ({ spear: [-0.04, 1.04, 0.3, 0, 0, 0], chest: [18, 0, 0], hips: [0, 0.98, 0.1], hipsR: [0, 0, 0],
-    fL: [0.14, 0.34, 0.5 + L('c1', f), -10, 10], fR: [-0.14, 0.34, 0.42 + L('c1', f), -10, -10], ...e });
+  const ride = (f, e) => ({
+    spear: [-0.04, 1.04, 0.3, 0, 0, 0],
+    chest: [18, 0, 0],
+    hips: [0, 0.98, 0.1],
+    hipsR: [0, 0, 0],
+    fL: [0.14, 0.34, 0.5 + L('c1', f), -10, 10],
+    fR: [-0.14, 0.34, 0.42 + L('c1', f), -10, -10],
+    ...e,
+  });
   C.c1 = clipF('c1', [
     [0, B],
     [10, push(0.2, 0, { hips: [0, 0.8, -0.04], chest: [16, 0, 0] })],
@@ -100,9 +145,37 @@ function attacks() {
   C.c2 = clipF('c2', [
     [0, B],
     [9, { spear: [-0.06, 0.92, 0.34, 0, -6, 0], chest: [22, 0, 0], hips: [0, 0.74, 0.04], hipsR: [0, 0, 0] }],
-    [12, { spear: [-0.06, 0.9, 0.36, 0, -8, 0], chest: [24, 0, 0], hips: [0, 0.72, 0.05], hipsR: [0, 0, 0], fL: lead('c2', 12, 0.3) }],
-    [17, { spear: [-0.04, 1.34, 0.34, 0, 62, 0], chest: [-12, 0, 0], head: [-10, 0, 0], hips: [0, 0.95, 0.05], hipsR: [0, 0, 0] }, 'snap'],
-    [34, { spear: [-0.04, 1.36, 0.32, 0, 66, 0], chest: [-10, 0, 0], head: [-8, 0, 0], hips: [0, 0.93, 0.05], hipsR: [0, 0, 0] }],
+    [
+      12,
+      {
+        spear: [-0.06, 0.9, 0.36, 0, -8, 0],
+        chest: [24, 0, 0],
+        hips: [0, 0.72, 0.05],
+        hipsR: [0, 0, 0],
+        fL: lead('c2', 12, 0.3),
+      },
+    ],
+    [
+      17,
+      {
+        spear: [-0.04, 1.34, 0.34, 0, 62, 0],
+        chest: [-12, 0, 0],
+        head: [-10, 0, 0],
+        hips: [0, 0.95, 0.05],
+        hipsR: [0, 0, 0],
+      },
+      'snap',
+    ],
+    [
+      34,
+      {
+        spear: [-0.04, 1.36, 0.32, 0, 66, 0],
+        chest: [-10, 0, 0],
+        head: [-8, 0, 0],
+        hips: [0, 0.93, 0.05],
+        hipsR: [0, 0, 0],
+      },
+    ],
     [62, B],
   ]);
   // ---- C3 wide 270° sweep (window 19–29)
@@ -162,19 +235,35 @@ function attacks() {
     [1, P({ ...out(60, -6, 25), hips: [0, 0.95, 0.04], footL: AIR.fL, footR: AIR.fR }, BR)],
   ]);
   // ---- jump charge: the cart overhead at the apex, plunge, slam the floor
-  const Lj = MOVES.jc.landFrame, Fj = MOVES.jc.frames, Dj = MOVES.jc.plunge[0];
-  const hang = { ...OVER, hips: [0, 1.0, 0.04], footL: [0.16, 0.5, 0.14, -30, 10], footR: [-0.18, 0.42, -0.12, 20, -20] };
-  const slam = { ...DOWN(0.55, -26), hips: [0, 0.62, 0.16], footL: [0.3, 0.08, 0.5, 0, 25], footR: [-0.3, 0.08, -0.3, 0, -50] };
-  C.jc = clip([
-    [0, P({ hips: [0, 0.95, 0], footL: AIR.fL, footR: AIR.fR }, BR)],
-    [5 / Fj, P(hang, BR), 'out'],
-    [(Dj - 1) / Fj, P(hang, BR)],
-    [(Lj - 1) / Fj, P({ ...hang, spear: [0, 1.2, 0.4, 0, -10, 0], chest: [10, 0, 0] }, BR), 'in'],
-    [Lj / Fj, P(slam, BR), 'snap'],
-    [(Lj + 8) / Fj, P(slam, BR)],
-    [MOVES.jc.cancel / Fj, P({ ...slam, hips: [0, 0.72, 0.1] }, BR), 'io'],
-    [1, P({}, BR)],
-  ], false, true);
+  const Lj = MOVES.jc.landFrame,
+    Fj = MOVES.jc.frames,
+    Dj = MOVES.jc.plunge[0];
+  const hang = {
+    ...OVER,
+    hips: [0, 1.0, 0.04],
+    footL: [0.16, 0.5, 0.14, -30, 10],
+    footR: [-0.18, 0.42, -0.12, 20, -20],
+  };
+  const slam = {
+    ...DOWN(0.55, -26),
+    hips: [0, 0.62, 0.16],
+    footL: [0.3, 0.08, 0.5, 0, 25],
+    footR: [-0.3, 0.08, -0.3, 0, -50],
+  };
+  C.jc = clip(
+    [
+      [0, P({ hips: [0, 0.95, 0], footL: AIR.fL, footR: AIR.fR }, BR)],
+      [5 / Fj, P(hang, BR), 'out'],
+      [(Dj - 1) / Fj, P(hang, BR)],
+      [(Lj - 1) / Fj, P({ ...hang, spear: [0, 1.2, 0.4, 0, -10, 0], chest: [10, 0, 0] }, BR), 'in'],
+      [Lj / Fj, P(slam, BR), 'snap'],
+      [(Lj + 8) / Fj, P(slam, BR)],
+      [MOVES.jc.cancel / Fj, P({ ...slam, hips: [0, 0.72, 0.1] }, BR), 'io'],
+      [1, P({}, BR)],
+    ],
+    false,
+    true,
+  );
   return C;
 }
 
@@ -187,23 +276,48 @@ const FEET = { footL: [0.24, 0.08, 0.14, 0, 20], footR: [-0.24, 0.08, -0.14, 0, 
 const UPF = { footL: [0.14, 0.34, 0.5, -10, 10], footR: [-0.14, 0.34, 0.42, -10, -10] };
 export const MUSOU_FRAMES = MF;
 export const MUSOU_CLIPS = {
-  mu_vlad: clip([
-    mk(0, {}),
-    mk(24, SHOOT(0, { spearL: [0.2, 1.8, 0.1, 0, 50, 0], chest: [-8, -10, 0], head: [-8, 0, 0], ...FEET })),
-    mk(30, SHOOT(-30, FEET), 'snap'), mk(48, SHOOT(-20, FEET)),
-    mk(55, SHOOT(30, FEET), 'snap'), mk(72, SHOOT(20, FEET)),
-    mk(80, SHOOT(0, { hips: [0, 0.8, 0.1], chest: [14, -14, 0], ...FEET }), 'snap'), mk(96, SHOOT(0, FEET)),
-    mk(104, push(0.2, 0, { hips: [0, 0.8, -0.04], chest: [16, 0, 0], ...FEET })),
-    mk(110, { spear: [-0.04, 1.04, 0.3, 0, 0, 0], chest: [20, 0, 0], hips: [0, 0.98, 0.1], hipsR: [0, 0, 0], ...UPF }, 'snap'),
-    mk(150, { spear: [-0.04, 1.04, 0.3, 0, 0, 0], chest: [24, 0, 0], hips: [0, 0.98, 0.1], hipsR: [0, 0, 0], spearL: [0.34, 1.5, 0.0, 40, 30, 0], ...UPF }),
-    mk(160, { ...push(0.3), ...FEET }),
-    mk(172, { ...OVER, spear: [0, 1.54, 0.14, 0, 82, 0], ...FEET }),
-    mk(180, { ...DOWN(0.55, -26), chest: [26, 0, 0], hips: [0, 0.7, 0.12], ...FEET }, 'snap'),
-    mk(198, { ...DOWN(0.55, -24), chest: [22, 0, 0], hips: [0, 0.74, 0.1], ...FEET }),
-    mk(210, {}),
-  ], false, true),
+  mu_vlad: clip(
+    [
+      mk(0, {}),
+      mk(24, SHOOT(0, { spearL: [0.2, 1.8, 0.1, 0, 50, 0], chest: [-8, -10, 0], head: [-8, 0, 0], ...FEET })),
+      mk(30, SHOOT(-30, FEET), 'snap'),
+      mk(48, SHOOT(-20, FEET)),
+      mk(55, SHOOT(30, FEET), 'snap'),
+      mk(72, SHOOT(20, FEET)),
+      mk(80, SHOOT(0, { hips: [0, 0.8, 0.1], chest: [14, -14, 0], ...FEET }), 'snap'),
+      mk(96, SHOOT(0, FEET)),
+      mk(104, push(0.2, 0, { hips: [0, 0.8, -0.04], chest: [16, 0, 0], ...FEET })),
+      mk(
+        110,
+        {
+          spear: [-0.04, 1.04, 0.3, 0, 0, 0],
+          chest: [20, 0, 0],
+          hips: [0, 0.98, 0.1],
+          hipsR: [0, 0, 0],
+          ...UPF,
+        },
+        'snap',
+      ),
+      mk(150, {
+        spear: [-0.04, 1.04, 0.3, 0, 0, 0],
+        chest: [24, 0, 0],
+        hips: [0, 0.98, 0.1],
+        hipsR: [0, 0, 0],
+        spearL: [0.34, 1.5, 0.0, 40, 30, 0],
+        ...UPF,
+      }),
+      mk(160, { ...push(0.3), ...FEET }),
+      mk(172, { ...OVER, spear: [0, 1.54, 0.14, 0, 82, 0], ...FEET }),
+      mk(180, { ...DOWN(0.55, -26), chest: [26, 0, 0], hips: [0, 0.7, 0.12], ...FEET }, 'snap'),
+      mk(198, { ...DOWN(0.55, -24), chest: [22, 0, 0], hips: [0, 0.74, 0.1], ...FEET }),
+      mk(210, {}),
+    ],
+    false,
+    true,
+  ),
 };
 
 const LOCO = carry({ stance: HOLD, run: { ...HOLD, spear: [-0.06, 1.0, 0.4, 0, 0, 0] }, bob: 0.012 });
 export const VLAD_CLIPS = { ...LOCO.clips, ...attacks(), ...MUSOU_CLIPS };
-export const runPose = LOCO.runPose, rollPose = LOCO.rollPose;
+export const runPose = LOCO.runPose,
+  rollPose = LOCO.rollPose;

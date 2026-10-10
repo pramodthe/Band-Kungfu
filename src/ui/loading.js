@@ -11,12 +11,17 @@ import { replay } from './menu.js';
 import { difficulty } from '../core/difficulty.js';
 import { resolveChapter } from '../story/chapters.js';
 
-export const MODE = { story: ['Tournament', '1000 challengers · four masters · one title'], free: ['Practice', 'Endless waves · no knock-out'], ai: ['Watch AI Play', 'BAND chooses tactics · you can take over'], agents: ['Agent Arena', 'You fight · BAND teammate and villain choose tactics'] };
+export const MODE = {
+  story: ['Tournament', '1000 challengers · four masters · one title'],
+  free: ['Practice', 'Endless waves · no knock-out'],
+  ai: ['Watch AI Play', 'BAND chooses tactics · you can take over'],
+  agents: ['Agent Arena', 'You fight · BAND teammate and villain choose tactics'],
+};
 // keep in step with the controls table (title.js CONTROLS)
 const TIPS = [
   'Tap J for the full combo; press K mid-combo for a charge finisher — a different one after every hit of the string.',
   'Every hit fills the gauge. When a segment is full, press I to unleash your Overclock.',
-  'L or Shift dodges; the roll slips straight through a blow — and through a boss\'s red circle.',
+  "L or Shift dodges; the roll slips straight through a blow — and through a boss's red circle.",
   'A red disc on the floor is a boss attack on its way: it lands when the disc is full. Walk out of it or roll through.',
   'Travelling shock rings can be jumped: press Space as the ring reaches you.',
   'R recenters the camera behind you, or onto the nearest boss.',
@@ -38,27 +43,41 @@ export function createLoading(el) {
       <p class="l-tip"><span>Tip</span><b></b></p>
       <div class="l-prog"><p class="l-state"></p><div class="l-bar"><i></i></div></div>
     </footer>`;
-  const $ = (s) => el.querySelector(s), bar = $('.l-bar i');
-  const state = (label) => { $('.l-state').textContent = label; };
+  const $ = (s) => el.querySelector(s),
+    bar = $('.l-bar i');
+  const state = (label) => {
+    $('.l-state').textContent = label;
+  };
   return {
     enter(c) {
-      const ch = CHARS[c.char] || CHARS[DEFAULT_CHAR], C = resolveChapter(c.chapter, ch.id), d = difficulty();
+      const ch = CHARS[c.char] || CHARS[DEFAULT_CHAR],
+        C = resolveChapter(c.chapter, ch.id),
+        d = difficulty();
       el.style.setProperty('--acc', ch.accent);
       $('.l-art').style.backgroundImage = c.art ? `url("${c.art}")` : 'none';
-      el.classList.remove('ready'); replay(el, 'in');
+      el.classList.remove('ready');
+      replay(el, 'in');
       const mode = MODE[c.mode] || MODE.free;
-      $('.l-ch b').textContent = c.mode === 'story' ? `${C.title.small} · ${C.title.name}` : `${mode[0]} · ${C.title.name}`;
+      $('.l-ch b').textContent =
+        c.mode === 'story' ? `${C.title.small} · ${C.title.name}` : `${mode[0]} · ${C.title.name}`;
       $('.l-ch small').textContent = `${c.mode === 'story' ? C.title.sub : mode[1]} · ${d.name}`;
-      $('.l-name h1').textContent = ch.name; $('.l-chip').textContent = ch.role;
+      $('.l-name h1').textContent = ch.name;
+      $('.l-chip').textContent = ch.role;
       $('.l-wpn').textContent = ch.weapon;
       $('.l-line').textContent = `“${ch.lines.intro}”`;
-      $('.l-tip b').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];   // UI only, not the sim
-      state('Booting');                                    // first label; deploy() then climbs through its stages
+      $('.l-tip b').textContent = TIPS[Math.floor(Math.random() * TIPS.length)]; // UI only, not the sim
+      state('Booting'); // first label; deploy() then climbs through its stages
       this.progress(0.06);
     },
     exit() {},
     /** p 0..1 plus the stage's label: real set-up stages (main.js deploy). */
-    progress(p, label) { bar.style.transform = `scaleX(${p})`; if (label) state(label); },
-    ready() { el.classList.add('ready'); state('Ready'); },
+    progress(p, label) {
+      bar.style.transform = `scaleX(${p})`;
+      if (label) state(label);
+    },
+    ready() {
+      el.classList.add('ready');
+      state('Ready');
+    },
   };
 }

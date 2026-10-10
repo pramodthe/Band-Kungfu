@@ -13,7 +13,10 @@ import { CHAR_ORDER } from '../chars/index.js';
 
 const LIST = [
   {
-    ...championship, id: 'championship', map: 'arena', cast: [...CHAR_ORDER],
+    ...championship,
+    id: 'championship',
+    map: 'arena',
+    cast: [...CHAR_ORDER],
     title: { small: 'STAGE 1', name: 'The Grand Arena', sub: 'Band Kungfu Tournament' },
     sides: { us: 'TEAM', them: 'GUARD', names: { us: 'Your team', them: 'Red Guard' } },
     skin: { foe: 'redguard', ally: 'blueguard' },

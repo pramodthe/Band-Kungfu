@@ -5,4 +5,12 @@ import { REDGUARD, BLUEGUARD } from './skins.js';
 import { SENTINEL, CRANE, OX, VIPER, DRAGON, DRAGON_UNMASKED, ECHO } from './models.js';
 
 export const SKINS = { redguard: REDGUARD, blueguard: BLUEGUARD };
-export const OFFICER_MODELS = { sentinel: SENTINEL, crane: CRANE, ox: OX, viper: VIPER, dragon: DRAGON, dragon_unmasked: DRAGON_UNMASKED, echo: ECHO };
+export const OFFICER_MODELS = {
+  sentinel: SENTINEL,
+  crane: CRANE,
+  ox: OX,
+  viper: VIPER,
+  dragon: DRAGON,
+  dragon_unmasked: DRAGON_UNMASKED,
+  echo: ECHO,
+};

@@ -44,7 +44,7 @@
 //  arrow:burst   projectiles {x,z, r, fire, heavy, big, count}           a burst arrow explodes (fire arrow, jump shots, Musou giant)
 //  arrow:headshot projectiles {i, x,y,z}                                 an aim-mode arrow takes a standing officer in the head
 const subs = new Map();
-let rec = null;                   // collect(): subscriptions made while a factory runs
+let rec = null; // collect(): subscriptions made while a factory runs
 
 export function on(name, fn) {
   let a = subs.get(name);
@@ -56,10 +56,22 @@ export function on(name, fn) {
 /** Run factory() and record every on() it makes. Returns [result, off]; off() drops those subscriptions (views that are
  *  rebuilt per character: hero / musou view). Do not call off() from inside an event handler. */
 export function collect(factory) {
-  const prev = rec, list = (rec = []);
+  const prev = rec,
+    list = (rec = []);
   try {
-    return [factory(), () => { for (const [n, f] of list) { const a = subs.get(n), k = a.indexOf(f); if (k >= 0) a.splice(k, 1); } }];
-  } finally { rec = prev; }
+    return [
+      factory(),
+      () => {
+        for (const [n, f] of list) {
+          const a = subs.get(n),
+            k = a.indexOf(f);
+          if (k >= 0) a.splice(k, 1);
+        }
+      },
+    ];
+  } finally {
+    rec = prev;
+  }
 }
 
 export function emit(name, payload) {

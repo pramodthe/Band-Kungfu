@@ -8,18 +8,42 @@ import { P, CH, STANCE } from '../../hero/rig.js';
 import { LOCO_CLIPS, runPose as baseRun, rollPose as baseRoll } from '../../hero/anims/locomotion.js';
 
 const KEYS = ['spear', 'spearL', 'dual', 'gripR', 'gripL', 'lfree', 'armL', 'rfree', 'armR'];
-const SPAN = { spear: [CH.spear, 6], spearL: [CH.spearL, 6], dual: [CH.dual, 1], gripR: [CH.gripR, 1], gripL: [CH.gripL, 1], lfree: [CH.lfree, 1],
-  armL: [CH.armL, 4], rfree: [CH.rfree, 1], armR: [CH.armR, 4] };
+const SPAN = {
+  spear: [CH.spear, 6],
+  spearL: [CH.spearL, 6],
+  dual: [CH.dual, 1],
+  gripR: [CH.gripR, 1],
+  gripL: [CH.gripL, 1],
+  lfree: [CH.lfree, 1],
+  armL: [CH.armL, 4],
+  rfree: [CH.rfree, 1],
+  armR: [CH.armR, 4],
+};
 
 export function carry({ stance, run = stance, bob = 0.03 }) {
-  const has = KEYS.filter((k) => stance[k] !== undefined), hasR = KEYS.filter((k) => run[k] !== undefined);
-  const S = P(stance, STANCE), R = P(run, STANCE);
-  const put = (src, keys, out) => { for (const k of keys) { const [at, n] = SPAN[k]; for (let i = 0; i < n; i++) out[at + i] = src[at + i]; } };
-  const clips = Object.fromEntries(Object.entries(LOCO_CLIPS).map(([id, c]) => [id, { ...c, keys: c.keys.map((key) => {
-    const p = key.p.slice();
-    put(S, has, p);
-    return { ...key, p };
-  }) }]));
+  const has = KEYS.filter((k) => stance[k] !== undefined),
+    hasR = KEYS.filter((k) => run[k] !== undefined);
+  const S = P(stance, STANCE),
+    R = P(run, STANCE);
+  const put = (src, keys, out) => {
+    for (const k of keys) {
+      const [at, n] = SPAN[k];
+      for (let i = 0; i < n; i++) out[at + i] = src[at + i];
+    }
+  };
+  const clips = Object.fromEntries(
+    Object.entries(LOCO_CLIPS).map(([id, c]) => [
+      id,
+      {
+        ...c,
+        keys: c.keys.map((key) => {
+          const p = key.p.slice();
+          put(S, has, p);
+          return { ...key, p };
+        }),
+      },
+    ]),
+  );
   return {
     clips,
     runPose(phase, k, out, lean) {
