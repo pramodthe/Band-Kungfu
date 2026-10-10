@@ -4,7 +4,7 @@
 // swung closed like a paddle; on the moves in OPEN (and the Overclock storm) it is shown open, screen blazing
 // (render-only swap). Secondary (render-only): the twin tails, and the open / closed swap.
 import * as THREE from 'three';
-import { vox, HV } from '../../hero/model.js';
+import { vox, HV } from '../shared/voxel-model.js';
 import { shade } from '../../core/voxel.js';
 import { outfit } from '../shared/outfit.js';
 import { B, Pt, both, hex, fighterMaterial, buildBody } from '../shared/body.js';

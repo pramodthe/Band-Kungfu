@@ -16,7 +16,7 @@
 // (its data lives in src/chars/<id>/).
 //
 // kit = {
-//   moves              move table (format: src/hero/moves.js header), prepared with prepMoves (src/hero/moveset.js); every
+//   moves              move table (format: docs/movesets.md), prepared with prepMoves (src/hero/moveset.js); every
 //                      kit has n1 c1 dash jatk jc (combo.js starts these from neutral)
 //   airChainMax        air-string length per jump
 //   clips              clip registry sampled by heroPose (attack + locomotion + Overclock clips; ids = move ids / states:

@@ -245,7 +245,7 @@ export function createHeroView(scene, hero) {
       rig.apply(pose, pos.set(hero.x, hero.y + ground(hero.x, hero.z), hero.z), hero.yaw); // sim y is height above ground
       rig.root.scale.setScalar(HERO_SCALE);
       rig.root.updateMatrixWorld(true); // after IK: grow the posed body about the ground point
-      applyRoll(rig, hero.anim); // dive roll: whole-body pitch about the tucked ball (locomotion-dodge)
+      applyRoll(rig, hero.anim, hero.kit.moves.jc); // dive roll: whole-body pitch about the tucked ball (locomotion-dodge)
       ghosts.update(hero, rig, dt);
       secondary.update(dt);
     },

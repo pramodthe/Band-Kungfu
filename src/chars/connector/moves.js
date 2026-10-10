@@ -1,4 +1,4 @@
-// Connector — the jelly's moveset (data only; format: src/hero/moves.js header; `hand`: R / L = which of its two orange
+// Connector — the jelly's moveset (data only; format: docs/movesets.md; `hand`: R / L = which of its two orange
 // ball hands strikes — the trail follows it). It fights with its whole body: jabs with the floating hands, belly bumps,
 // the spin, the hops — and it copies what it has seen: C1 is Arick's scream, C4 Vlad's camera flash, C6 splits it into
 // three. All timings in 60 Hz sim frames.

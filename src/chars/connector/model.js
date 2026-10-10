@@ -7,7 +7,7 @@
 // blazing on Copy: Flash), the hairs swaying, the two copies of Clone Burst, and the Overclock's size — GIGA CONNECT
 // blows the whole rig up 4.64× (a hundred times its volume).
 import * as THREE from 'three';
-import { vox } from '../../hero/model.js';
+import { vox } from '../shared/voxel-model.js';
 import { shade } from '../../core/voxel.js';
 import { hash01 } from '../../core/rng.js';
 import { HERO_SCALE } from '../../hero/rig.js';

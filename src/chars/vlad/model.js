@@ -2,7 +2,7 @@
 // day's stubble. Weapons (dual-wield rig): right = a arena cart (weapon joint: origin = the middle of its handle, the
 // basket rolls ahead of it on four wheels 1 m under the handle; loaded with an old monitor and a server box), left = his
 // camera (weaponL: body, lens along +Z, a flash unit on top).
-import { vox } from '../../hero/model.js';
+import { vox } from '../shared/voxel-model.js';
 import { hash01 } from '../../core/rng.js';
 import { outfit } from '../shared/outfit.js';
 import { B, Pt, both, hex, fighterMaterial, buildBody } from '../shared/body.js';
@@ -42,7 +42,7 @@ export function head() {
     B([-4, 3, -4], [5, 10, 0], BC.hair), // short hair at the back and sides
     ...both(B([-4, 4, 0], [-3, 8, 2], BC.hair)), // sideburns
     // baseball cap: crown, button, the peak forward over the brow
-    B([-4, 9, -5], [5, 13, 4], (x, y, z) => (x === 0 ? BC.capD : BC.cap)),
+    B([-4, 9, -5], [5, 13, 4], (x) => (x === 0 ? BC.capD : BC.cap)),
     B([-3, 13, -4], [4, 14, 3], BC.cap),
     B([0, 14, -1], [1, 15, 0], BC.capD),
     B([-4, 9, 4], [5, 10, 9], BC.capD),
@@ -113,7 +113,7 @@ function cameraGeo() {
 /** Trail anchors (m along the cart's axis): the basket, handle to nose. */
 export const CART = { tip: 1.0, base: 0.2 };
 
-export function createBrianModel(rig) {
+export function createVladModel(rig) {
   const mat = fighterMaterial();
   const parts = outfit({
     top: BC.tee,
@@ -140,7 +140,7 @@ export function createBrianModel(rig) {
 // ---------------------------------------------------------------- secondary: the camera strap swinging under it
 const strapSeg = () =>
   vox([B([-1, -5, 0], [1, 0, 1], 0xd0402a)], 0.02, { off: [0, 0, -0.5], jitter: 0.03, ao: 0.1 });
-export function createBrianSecondary(scene, rig, mat) {
+export function createVladSecondary(scene, rig, mat) {
   const chains = createChains(scene, rig, mat);
   chains.add(rig.joints.weaponL, {
     anchor: [0.08, -0.06, 0],

@@ -4,7 +4,7 @@
 // shoulder, flies ahead on the moves listed in ./moves.js DRONE_MOVES and rakes the floor with its laser on Drone Strafe
 // and during the Overclock.
 import * as THREE from 'three';
-import { vox } from '../../hero/model.js';
+import { vox } from '../shared/voxel-model.js';
 import { boxesGeometry, shade } from '../../core/voxel.js';
 import { hash01 } from '../../core/rng.js';
 import { ground } from '../../world/map.js';

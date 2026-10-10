@@ -2,7 +2,7 @@
 // voxel man in his cap and blue T-shirt (model.js), RUSH HOUR (musou.js) and the effects view (view.js).
 import { MOVES, AIR_CHAIN_MAX } from './moves.js';
 import { VLAD_CLIPS, runPose, rollPose } from './anims.js';
-import { createBrianModel, createBrianSecondary, CART } from './model.js';
+import { createVladModel, createVladSecondary, CART } from './model.js';
 import { createMusou } from './musou.js';
 import { createMusouView } from './view.js';
 
@@ -14,8 +14,8 @@ export const VLAD_KIT = {
   runPose,
   rollPose,
   dashPlant: MOVES.dash.lunge[1][0] + 4,
-  model: createBrianModel,
-  secondary: createBrianSecondary,
+  model: createVladModel,
+  secondary: createVladSecondary,
   // the ribbon follows the cart's swings only (a flash leaves no trail)
   trail: {
     base: CART.base,

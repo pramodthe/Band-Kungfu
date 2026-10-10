@@ -5,7 +5,7 @@ services:
     plan: free
     region: singapore
     branch: codex/public-hosting
-    buildCommand: npm ci && npm test
+    buildCommand: npm ci --include=dev && npm run check && npm prune --omit=dev
     startCommand: npm start
     healthCheckPath: /healthz
     envVars:

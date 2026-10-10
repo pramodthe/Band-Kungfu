@@ -1,6 +1,8 @@
 import { on } from '../core/events.js';
 import { arenaObservation, executeArenaTactic } from '../ai/arena-controller.js';
 import { parseArenaTactic } from '../ai/arena-protocol.js';
+import { AgentApiClient } from './agent-api-client.js';
+import { AI_TIMING } from '../ai/timing.js';
 
 export function createAgentArena(game) {
   const dialog = document.createElement('dialog');
@@ -44,19 +46,7 @@ export function createAgentArena(game) {
     reasons = {},
     modelLabel = '';
   const setupState = dialog.querySelector('.setup-state');
-  const request = async (action, body, keepalive = false) => {
-    const response = await fetch(`/api/arena/${action}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: keepalive ? undefined : AbortSignal.timeout(35000),
-      keepalive,
-    });
-    const data = await response.json();
-    if (!response.ok)
-      throw Object.assign(Error(data.error || 'Arena is unavailable'), { status: response.status });
-    return data;
-  };
+  const client = new AgentApiClient('arena');
   const updateFields = () => {
     const own = field('source').value === 'byok';
     dialog.querySelector('.own-model').hidden = !own;
@@ -124,7 +114,7 @@ export function createAgentArena(game) {
     settings = null;
     const id = session;
     session = null;
-    if (id) await request('stop', { id }, true).catch(() => {});
+    if (id) await client.post('stop', { id }, { keepalive: true }).catch(() => {});
   }
   function draw() {
     panel.hidden = !enabled || !battle;
@@ -161,13 +151,13 @@ export function createAgentArena(game) {
       const observation = Object.fromEntries(
         roles.map((role) => [role, arenaObservation(game, role, slots)]),
       );
-      const result = await request('observe', { id: session, observation, active: !paused });
+      const result = await client.post('observe', { id: session, observation, active: !paused });
       if (token !== generation) return;
       for (const role of roles) {
         const r = result.agents[role];
         states[role] = descriptions[r.state] || 'Waiting for a turn';
         plans[role] = r.tactic ? parseArenaTactic(r.tactic) : null;
-        expires[role] = performance.now() + Math.min(20000, Math.max(0, r.validForMs));
+        expires[role] = performance.now() + Math.min(AI_TIMING.tacticTtlMs, Math.max(0, r.validForMs));
         if (plans[role]) reasons[role] = plans[role].reason;
       }
     } catch (error) {
@@ -197,10 +187,10 @@ export function createAgentArena(game) {
       return;
     }
     try {
-      const result = await request('session', payload);
+      const result = await client.post('session', payload);
       payload.model.apiKey = '';
       if (token !== generation || !battle) {
-        await request('stop', { id: result.id }, true).catch(() => {});
+        await client.post('stop', { id: result.id }, { keepalive: true }).catch(() => {});
         return;
       }
       session = result.id;
@@ -239,8 +229,8 @@ export function createAgentArena(game) {
       setupState.textContent = '';
       updateFields();
       dialog.showModal();
-      fetch('/api/arena/status')
-        .then((r) => r.json())
+      client
+        .status()
         .then((status) => {
           if (!dialog.open) return;
           setupState.textContent = ['ally', 'boss'].some((role) => !status.roles[role])

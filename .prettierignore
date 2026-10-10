@@ -1,0 +1,6 @@
+node_modules/
+vendor/
+package-lock.json
+.env*
+.band-workspaces/
+.playwright-cli/

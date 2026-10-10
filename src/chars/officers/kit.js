@@ -162,7 +162,7 @@ export function humanBody(C, o = {}) {
   }
   if (o.cape != null)
     p.torso.push(
-      b([-w(0.2), -0.34, -0.19], [w(0.2), 0.46, -0.135], (x, y, z, i, j, k) =>
+      b([-w(0.2), -0.34, -0.19], [w(0.2), 0.46, -0.135], (x, y, z, i, j) =>
         y < -0.28 && hash01(i, 5, 2) < 0.4 ? null : j % 6 === 0 ? shade(o.cape, 0.8) : o.cape,
       ),
     );

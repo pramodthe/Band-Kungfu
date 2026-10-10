@@ -1,6 +1,6 @@
-import { Agent } from '@band-ai/sdk';
 import OpenAI from 'openai';
 import { parseArenaTactic, ARENA_GOALS } from '../ai/arena-protocol.js';
+import { PrivateBandRoom } from './private-band-room.js';
 
 export const PROVIDERS = { openai: 'https://api.openai.com/v1', groq: 'https://api.groq.com/openai/v1' };
 const logger = Object.fromEntries(['debug', 'info', 'warn', 'error'].map((k) => [k, () => {}]));
@@ -87,66 +87,23 @@ export async function chooseArenaTactic(job, clientFactory = (options) => new Op
 
 // One BAND identity/socket per role; each decision uses only that visitor's facts and model credentials.
 export async function createArenaRuntime(env, role) {
-  const prefix = role.toUpperCase(),
-    roomId = env[`${prefix}_ROOM_ID`],
-    agentId = env[`${prefix}_AGENT_ID`],
-    key = env[`${prefix}_API_KEY`];
   const jobs = new Map();
-  const agent = Agent.create({
-    agentId,
-    apiKey: key,
-    logger,
-    agentConfig: { autoSubscribeExistingRooms: true },
-    roomFilter: (room) => room.id === roomId,
-    sessionConfig: { maxContextMessages: 1 },
-    adapter: arenaAdapter(jobs),
-  });
-  try {
-    await agent.start();
-    const response = await fetch(
-      `https://app.band.ai/api/v1/agent/chats/${encodeURIComponent(roomId)}/participants`,
-      {
-        headers: { 'X-API-Key': key },
-        signal: AbortSignal.timeout(10000),
-      },
-    );
-    if (!response.ok) throw Error('Private agent room is unavailable');
-    const { data } = await response.json();
-    if (
-      !Array.isArray(data) ||
-      data.filter((p) => p.type === 'User').length !== 1 ||
-      data.some((p) => p.type === 'Agent' && p.id !== agentId)
-    )
-      throw Error('Use a private room for each arena agent');
-    const owner = data.find((p) => p.type === 'User');
-    return {
-      async decide(job) {
-        jobs.set(job.id, job);
-        try {
-          await agent.bootstrapRoomMessage(roomId, {
-            id: job.id,
-            roomId,
-            senderId: owner.id,
-            senderType: 'User',
-            senderName: owner.handle,
-            messageType: 'text',
-            metadata: {},
-            createdAt: new Date(),
-            content: JSON.stringify({ observation: job.observation }),
-          });
-          if (!job.plan || job.signal.aborted) throw Error('Decision ended');
-          return job.plan;
-        } finally {
-          jobs.delete(job.id);
-        }
-      },
-      async close() {
-        jobs.clear();
-        await agent.stop(1000);
-      },
-    };
-  } catch (error) {
-    await agent.stop(1000).catch(() => {});
-    throw error;
-  }
+  const room = new PrivateBandRoom({ env, prefix: role.toUpperCase(), adapter: arenaAdapter(jobs), logger });
+  await room.start();
+  return {
+    async decide(job) {
+      jobs.set(job.id, job);
+      try {
+        await room.bootstrap(job.id, { observation: job.observation });
+        if (!job.plan || job.signal.aborted) throw Error('Decision ended');
+        return job.plan;
+      } finally {
+        jobs.delete(job.id);
+      }
+    },
+    async close() {
+      jobs.clear();
+      await room.close();
+    },
+  };
 }

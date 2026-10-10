@@ -2,6 +2,8 @@ import { on, emit } from '../core/events.js';
 import { clampWalk } from '../world/map.js';
 import { createAiController, observation } from '../ai/controller.js';
 import { parseTactic } from '../ai/protocol.js';
+import { AgentApiClient } from './agent-api-client.js';
+import { AI_TIMING } from '../ai/timing.js';
 
 export function createAiPlayer(game) {
   const controller = createAiController({ walk: clampWalk });
@@ -28,18 +30,7 @@ export function createAiPlayer(game) {
     busy = false,
     timer = 0;
   let stopping = Promise.resolve();
-  const request = async (path, data, keepalive = false) => {
-    const response = await fetch(`./api/player/${path}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(data),
-      ...(keepalive ? { keepalive } : { signal: AbortSignal.timeout(35000) }),
-    });
-    const result = await response.json();
-    if (!response.ok)
-      throw Object.assign(Error(result.error || 'BAND player is unavailable'), { status: response.status });
-    return result;
-  };
+  const client = new AgentApiClient('player');
   function draw() {
     root.hidden = !enabled || !battle;
     document.body.classList.toggle('ai-watch', enabled && battle);
@@ -82,7 +73,7 @@ export function createAiPlayer(game) {
     clearTimeout(timer);
     const old = session;
     session = null;
-    if (old) stopping = request('stop', { id: old.id }, true).catch(() => {});
+    if (old) stopping = client.post('stop', { id: old.id }, { keepalive: true }).catch(() => {});
     draw();
   }
   async function begin() {
@@ -96,9 +87,9 @@ export function createAiPlayer(game) {
     try {
       await stopping;
       if (current !== generation || !active) return;
-      const started = await request('session', {});
+      const started = await client.post('session', {});
       if (current !== generation || !active) {
-        request('stop', { id: started.id }, true).catch(() => {});
+        client.post('stop', { id: started.id }, { keepalive: true }).catch(() => {});
         return;
       }
       session = started;
@@ -126,11 +117,11 @@ export function createAiPlayer(game) {
     if (busy) return;
     busy = true;
     try {
-      const result = await request('observe', { id: session.id, observation: observation(game) });
+      const result = await client.post('observe', { id: session.id, observation: observation(game) });
       if (current !== generation || !active) return;
       state = result.state;
       tactic = result.tactic ? parseTactic(result.tactic) : null;
-      expires = performance.now() + Math.min(20000, Math.max(0, result.validForMs || 0));
+      expires = performance.now() + Math.min(AI_TIMING.tacticTtlMs, Math.max(0, result.validForMs || 0));
       message =
         state === 'error' ? 'The agent could not choose a tactic. You can take over while it retries.' : '';
     } catch (error) {

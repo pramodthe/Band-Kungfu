@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { P, clip, sampleClip, blendPose, spearAbout, CH, POSE_SIZE, HERO_SCALE } from '../rig.js';
 import { LOCO, cadence } from '../locomotion.js';
-import { MOVES } from '../moves.js';
+import { verticalScale, jumpChargeAuraActive } from '../animation-effects.js';
 
 const D2R = Math.PI / 180,
   TAU = Math.PI * 2;
@@ -357,26 +357,11 @@ export function rollPose(u, out) {
   return out;
 }
 
-/**
- * Squash & stretch (render-only, from sim anim state): take-off stretches the body along the jump, a landing or the
- * jump-charge impact squashes it flat and springs back with a small overshoot. Returns the vertical scale (1 = none).
- */
-function squash(anim) {
-  let s = 0;
-  if (anim.id === 'air' && anim.t < 0.22) return 1 + 0.15 * (1 - anim.t / 0.22); // rise: vy > 0.56 jumpV
-  if (anim.id === 'land') s = 0.17 * (1 - anim.t) * (1 - anim.t) - 0.05 * Math.sin(Math.PI * anim.t);
-  else if (anim.id === 'jc') {
-    const u = (anim.t * MOVES.jc.frames - MOVES.jc.landFrame) / 10;
-    if (u >= 0 && u < 1) s = 0.22 * (1 - u) * (1 - u) - 0.05 * Math.sin(Math.PI * u);
-  }
-  return 1 - s;
-}
-
 /** View-side (call right after rig.apply, which must see the root at scale 1): squash & stretch about the feet, and
  *  during a dodge the roll pitch of the posed rig root about ROLL_PIVOT. */
-export function applyRoll(rig, anim) {
+export function applyRoll(rig, anim, jumpCharge) {
   const R = rig.root,
-    sy = squash(anim);
+    sy = verticalScale(anim, jumpCharge);
   if (sy !== 1) {
     const sx = 1 / Math.sqrt(sy);
     R.scale.set(sx * HERO_SCALE, sy * HERO_SCALE, sx * HERO_SCALE);
@@ -482,13 +467,13 @@ export function createDodgeGhosts(scene, model) {
     depthWrite: false,
   });
   const rim = { mat: rimMat, meshes: src.map((m) => clone(m.geometry, rimMat, 3, 0)) };
-  const IF = LOCO.dodgeIFrames[1],
-    JC = MOVES.jc;
+  const IF = LOCO.dodgeIFrames[1];
   let seq = -1,
     lastT = 0,
     next = 1;
   return {
     update(hero, rig, dt) {
+      const JC = hero.kit.moves.jc;
       const live = groups[0],
         dodging = hero.state === 'dodge';
       hx = hero.x;
@@ -513,7 +498,7 @@ export function createDodgeGhosts(scene, model) {
         ke = t < 3 ? 1.09 : 1.07;
         live.mat.color.setHex(t < 3 ? 0xc8fff6 : 0x6fe8dc);
         rimMat.color.setHex(t < 3 ? 0xa8fff0 : 0x52e8d8);
-      } else if (hero.move === 'jc' && hero.moveT >= JC.hang[0] - 3 && hero.moveT < JC.plunge[0] + 2) {
+      } else if (jumpChargeAuraActive(hero)) {
         const t = hero.moveT,
           ramp = hero.vy > 0.5 ? 0.35 : Math.min(1, (t - JC.hang[0] + 3) / 6),
           flare = t >= JC.plunge[0] - 4 ? 1.6 : 1;

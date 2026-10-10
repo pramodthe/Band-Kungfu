@@ -14,7 +14,7 @@
 import * as THREE from 'three';
 import { CHARS } from '../chars/index.js';
 import { sampleClip, POSE_SIZE } from '../hero/rig.js';
-import { heroLook } from '../hero/model.js';
+import { heroLook } from '../chars/shared/voxel-model.js';
 import { createNav, sfx, inkWipe, wiping, afterWipe, stamp, clearStamp, replay } from './menu.js';
 import { ground } from '../world/map.js';
 import { dotTex, scatter, passPoint, standOfficer, poseOfficer } from './stage.js';

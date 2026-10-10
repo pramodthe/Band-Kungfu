@@ -1,5 +1,5 @@
 // Moveset helpers shared by every character kit (src/chars/*/): move-table preparation, lunge and clip retiming.
-// The move-table format is documented at the top of src/hero/moves.js (Zhao Yun's moveset); a kit's table goes through
+// The move-table format is documented at the top of docs/movesets.md; a kit's table goes through
 // prepMoves() once at module load.
 // Dual wield (stage-2b hook): a move may name the striking hand — hand: 'R' (default) | 'L', or [[frame, 'R' | 'L'], …]
 // switching from those move frames on (alternating snips). Render-only: the weapon trail follows that hand's blade.

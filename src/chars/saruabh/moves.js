@@ -1,4 +1,4 @@
-// Saruabh — phone + laptop moveset (data only; format: src/hero/moves.js header; `hand` = the striking hand, src/hero/moveset.js
+// Saruabh — phone + laptop moveset (data only; format: docs/movesets.md; `hand` = the striking hand, src/hero/moveset.js
 // handAt — the trail follows it: R = the phone on its selfie stick, L = the laptop). Fast: a short-gap N-string alternating
 // hands, dodge cancels right after the hit on N3 and N5, spinning open-laptop moves. The laptop swats closed; the moves
 // listed in ./model.js OPEN show it open, screen blazing (render-only).

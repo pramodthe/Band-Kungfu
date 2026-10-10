@@ -14,7 +14,6 @@ export const WORLDS = { arena: buildArena };
 installHaze();
 // the sun's shadow fades out over the outer 20 % of its box instead of cutting off: soldiers and props at the box edge
 // no longer pop a shadow on / off as the hero moves (must patch before any material compiles)
-const SHADOW_BOX = 34;
 {
   const RET =
     '\t\t\treturn mix( 1.0, shadow, shadowIntensity );\n\t\t}\n\t#elif defined( SHADOWMAP_TYPE_VSM )';

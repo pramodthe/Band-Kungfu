@@ -87,7 +87,7 @@ export function outfit(o) {
     // skirt it reads as the cloth swinging with it, not as a bare leg through the dress
     if (o.skirt)
       p['thigh' + s].push(
-        B([-4, -(o.skirt.len ?? 11) + 2, -4], [5, 1, 5], (x, y) => ((x + 40) % 3 === 0 ? JD : o.skirt.c)),
+        B([-4, -(o.skirt.len ?? 11) + 2, -4], [5, 1, 5], (x) => ((x + 40) % 3 === 0 ? JD : o.skirt.c)),
       );
     p['shin' + s] = [B([-2, -17, -2], [3, 0, 3], T)];
     if (o.sock != null)

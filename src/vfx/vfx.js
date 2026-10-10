@@ -1066,7 +1066,7 @@ export function createVfx(scene, game, world) {
         continue;
       }
       let a0 = 0,
-        a1 = 1,
+        a1,
         w = B.wid[i];
       if (B.kind[i] === STREAK) {
         // shoots out, tail catches up
@@ -1885,16 +1885,13 @@ export function createVfx(scene, game, world) {
   });
 
   // Musou payoff layers take the character's colour: Zhao Yun's azure dragon, Huang Zhong's fire volley
-  const MU_COOL = { crack: [0.4, 1.5, 2.6], wall: [0.07, 0.3, 0.45], light: [0.5, 0.9, 1] },
-    MU_FIRE = { crack: [2.8, 1.1, 0.25], wall: [0.8, 0.34, 0.09], light: [1, 0.6, 0.3] };
-  const isHZ = () => !!(game.hero.char && game.hero.char.id === 'huangzhong');
-  const muPal = () => (isHZ() ? MU_FIRE : MU_COOL);
+  const MU_COOL = { crack: [0.4, 1.5, 2.6], wall: [0.07, 0.3, 0.45], light: [0.5, 0.9, 1] };
+  const muPal = () => MU_COOL;
   on('musou:start', (e) => {
     // no screen flash here: src/musou/view.js owns the activation flash + dim (musou part)
-    if (!isHZ()) ring(e.x, e.z, 7, 0.5, TEAL);
+    ring(e.x, e.z, 7, 0.5, TEAL);
     wall(e.x, e.z, 4.5, 1.8, 0.5, muPal().wall);
     lightFlash(e.x, 1.4, e.z, muPal().light, 40, 0.5, 12);
-    if (isHZ()) return; // teal star / shards are Zhao Yun's; src/chars/huangzhong/fx.js owns his
     star(tipNow.x, tipNow.y, tipNow.z, 1.0, 0.5, [1.0, 1.9, 2.8], 0);
     shards(e.x, 1.0, e.z, 20, 4, [0.6, 1.6, 2.4], 0.06);
     dustRing(e.x, e.z, 16, 0.4, 5, 0.45, 0.45);
@@ -1915,7 +1912,6 @@ export function createVfx(scene, game, world) {
       wall(e.x, e.z, 7, 1.3, 0.4, P.wall);
       lightFlash(e.x, 1.5, e.z, P.light, 30, 0.4, 14);
     }
-    if (isHZ()) return; // teal rush streaks run from the spear: Zhao Yun only
     if (!(e.stage === 'contact' || (e.stage === 'rush' && e.n % 6 === 0))) {
       needleBurst(e.x, e.y, e.z, 2, fx, fz, 12, NEEDLE_COOL, 0.045);
       return;
@@ -1960,7 +1956,6 @@ export function createVfx(scene, game, world) {
     crack(e.x, e.z, 6, P.crack, 4);
     wall(e.x, e.z, 7, 1.4, 0.4, P.wall); // fx r1: lower / dimmer; fx r2: 7 m (11 m swept past the finisher lenses)
     lightFlash(e.x, 2, e.z, P.light, 40, 0.5, 18);
-    if (isHZ()) return; // his giant-arrow fireball lives in src/chars/huangzhong/fx.js
     flash(0.12, 4); // ≈ 2 frames: the cream mix held a veil over the launched tiers
     // fx r1: a hot core of 2-4 frames, then clear air — 0.6-0.8 s of 16 rays + the dragon's shell bloomed into a cyan
     // fog over the launched bodies; fewer, slimmer, shorter rays below the bloom knee, so the bodies hold silhouette
@@ -2298,7 +2293,7 @@ export function createVfx(scene, game, world) {
       );
     }
     // musou activation: cyan-white motes spiral up around the hero while the world holds still
-    if (h.state === 'musou' && h.stateT < 34 && !isHZ()) {
+    if (h.state === 'musou' && h.stateT < 34) {
       moteAcc += dt * 70;
       while (moteAcc > 1) {
         moteAcc--;

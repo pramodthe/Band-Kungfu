@@ -1,9 +1,9 @@
-// Secondary motion for the fighters (render-only): verlet spring chains (src/hero/secondary.js chain: hair, straps, cloth
+// Secondary motion for the fighters (render-only): verlet spring chains (src/chars/shared/spring-chain.js chain: hair, straps, cloth
 // tails) anchored to rig joints, with the body's sphere colliders and the wind. Visual state only — never touches the sim.
 // createChains(scene, rig, mat) → { add(joint, chainOpts), reset(), update(dt) → t (s) }
 import * as THREE from 'three';
-import { chain } from '../../hero/secondary.js';
-import { HV } from '../../hero/model.js';
+import { chain } from './spring-chain.js';
+import { HV } from './voxel-model.js';
 
 export function createChains(scene, rig, mat) {
   const j = rig.joints,

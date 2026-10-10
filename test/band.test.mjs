@@ -113,6 +113,12 @@ test('server hides credentials and disables submissions when unconfigured', asyn
   assert.equal((await fetch(`${base}/src/server/band.js`)).status, 404);
   assert.equal((await fetch(`${base}/src/server/player-runtime.js`)).status, 404);
   assert.equal((await fetch(`${base}/src/server/arena-runtime.js`)).status, 404);
+  assert.equal((await fetch(`${base}/src/server/game-server.js`)).status, 404);
+  assert.equal((await fetch(`${base}/src/SERVER/game-server.js`)).status, 404);
+  assert.equal((await fetch(`${base}/src/hero/model.js`)).status, 404);
+  const stylesheet = await fetch(`${base}/src/ui/styles.css`);
+  assert.equal(stylesheet.status, 200);
+  assert.match(stylesheet.headers.get('content-type'), /text\/css/);
   assert.deepEqual(await (await fetch(`${base}/api/arena/status`)).json(), {
     roles: { ally: false, boss: false },
     hosted: false,

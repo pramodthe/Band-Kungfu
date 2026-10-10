@@ -5,7 +5,7 @@
 //
 // Catalogue (emitter → payload fields):
 //  scenario      main     {mode, char}                                  after a battle reset
-//  flow          main     {state, ctx}                                  flow state entered: title|select|prologue|battle|result
+//  flow          main     {state, ctx}                                  flow state entered: title|select|loading|battle|result
 //  attack:start  combo    {move, x,y,z, yaw, charge, tell}              a move begins (charge: C1–C6/jump charge;
 //                                                                        tell: frames until its first active frame)
 //  attack:swing  combat   {move, win, yaw, heavy}                       a hitbox window opens (whoosh)
@@ -28,7 +28,7 @@
 //  musou:hit     musou    {x,y,z, stage, yaw, n}                        one hit tick; stage 'contact' (first mass hit, 2.2 s)
 //                                                                       | 'front' (contact shock front rolling through the crowd)
 //                                                                       | 'dragon' (at the dragon head) | 'rush' | 'wave' (on the ring)
-//  musou:burst   musou    {count, x,z}                                  finisher: the ring wave starts at Zhao Yun
+//  musou:burst   musou    {count, x,z}                                  finisher: the ring wave starts at the fighter
 //  musou:end     musou    {}
 //  crowd:wave    crowd    {x,z}                                         reinforcements spawned
 //  crowd:allies  crowd    {x,z}                                         a Shu column spawned (runs up the road behind the hero)
@@ -40,9 +40,6 @@
 //  story:objective story  {zh, en}                                      current objective (HUD, top left; empty zh clears it)
 //  story:end     story    {win, stats}                                  battle over → flow goes to the result screen.
 //                                                                       stats: {kos, time (s), hpMax, maxChain, dmg, rank?}
-//  arrow:fire    projectiles {x,y,z, yaw, n, heavy, fire, big, sky, move}  a shot leaves the bow (n arrows; big 1 heavy, 2 Musou giant)
-//  arrow:burst   projectiles {x,z, r, fire, heavy, big, count}           a burst arrow explodes (fire arrow, jump shots, Musou giant)
-//  arrow:headshot projectiles {i, x,y,z}                                 an aim-mode arrow takes a standing officer in the head
 const subs = new Map();
 let rec = null; // collect(): subscriptions made while a factory runs
 

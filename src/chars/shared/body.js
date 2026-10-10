@@ -1,8 +1,8 @@
-// Fighter model assembly on the shared rig (src/hero/rig.js): one voxel mesh per joint from box lists (src/hero/model.js
+// Fighter model assembly on the shared rig (src/hero/rig.js): one voxel mesh per joint from box lists (src/chars/shared/voxel-model.js
 // vox: exposed faces + baked ambient occlusion), the fighter material (camera fill + rim, heroLook), and the kit's
 // extras (weapon, props) through add().
 import * as THREE from 'three';
-import { vox, V, HV, heroLook } from '../../hero/model.js';
+import { vox, V, HV, heroLook } from './voxel-model.js';
 
 export const B = (a, b, c, paint) => ({ a, b, c, paint });
 export const Pt = (a, b, c) => ({ a, b, c, paint: true });

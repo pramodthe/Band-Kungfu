@@ -25,7 +25,6 @@ import {
   mainframe,
   shutter,
   NEON,
-  STEEL,
   STEEL_D,
   HAZARD,
   CONTAINER_COLS,
@@ -210,7 +209,7 @@ export function buildArena(scene, root) {
       }
 
   // ---- Opening Court: stacks along the walls, carts and crates
-  MAP.stacks.forEach(([x0, z0, x1, z1], k) => {
+  MAP.stacks.forEach(([x0, z0], k) => {
     const x = x0 < 0 ? -26.5 : 26.5;
     for (let n = 0; n < 2; n++) {
       const z = z0 + 3.2 + n * 6.5;

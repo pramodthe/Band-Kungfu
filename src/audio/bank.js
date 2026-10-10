@@ -1,6 +1,6 @@
 // Offline-synthesised sound bank (OfflineAudioContext, no downloads). Everything is baked once at boot into AudioBuffers
 // — formant-synth voices (Zhao Yun kiai, enemy grunts / death cries, distant army), layered spear whooshes, slash
-// impacts, armour clanks, bowstring twangs, body falls, Musou stingers, a looping battle bed, a war-drum loop and a power-chord riff loop
+// impacts, armour clanks, body falls, Musou stingers, a looping battle bed, a war-drum loop and a power-chord riff loop
 // (bake ≈ 0.9 s at boot; combat sounds are ready after ≈ 0.1 s) — and played back by
 // audio.js with random rate / gain / pan, so 50+ hits per second stay cheap and never repeat back to back.
 // Audio variation uses Math.random: it must never touch the sim or visual RNG.
@@ -916,38 +916,6 @@ function fall(oc, dst, heavy) {
   if (Math.random() < 0.6) clank(oc, dst, rnd(0.01, 0.05), rnd(1100, 2000), 0.25, 0.08);
 }
 
-/** Bowstring twang (Huang Zhong): a plucked saw with a fast pitch drop through a closing resonant lowpass; heavy = lower,
- *  louder, longer. Baked at its playing level (bake peak 0). */
-function twang(oc, dst, heavy) {
-  const f0 = heavy ? rnd(92, 104) : rnd(128, 150),
-    o = osc(oc, 'sawtooth', 0, 0.32),
-    lp = filt(oc, 'lowpass', 4200, 6);
-  pts(
-    o.frequency,
-    0,
-    [
-      [0, f0 * 1.5],
-      [0.02, f0],
-    ],
-    true,
-  );
-  pts(
-    lp.frequency,
-    0,
-    [
-      [0, 4200],
-      [0.16, 420],
-    ],
-    true,
-  );
-  const g = env(oc, 0, [
-    [0, 0],
-    [0.003, heavy ? 0.5 : 0.34],
-  ]);
-  g.gain.exponentialRampToValueAtTime(0.001, heavy ? 0.3 : 0.2);
-  o.connect(lp).connect(g).connect(dst);
-}
-
 // ---- stingers
 function bell(oc, dst, t, f, g, dec) {
   [1, 2.0, 2.76, 3.9, 5.4].forEach((r, j) =>
@@ -1083,20 +1051,7 @@ export async function buildBank(B = {}) {
       }),
     );
   await put(
-    [
-      'slash',
-      'thrust',
-      'spin',
-      'heavy',
-      'hit',
-      'hitHeavy',
-      'crunch',
-      'clank',
-      'crowd',
-      'mass',
-      'twang',
-      'twangHeavy',
-    ],
+    ['slash', 'thrust', 'spin', 'heavy', 'hit', 'hitHeavy', 'crunch', 'clank', 'crowd', 'mass'],
     [
       n(6, () =>
         bake(0.3, (oc, d) =>
@@ -1158,8 +1113,6 @@ export async function buildBank(B = {}) {
       n(6, () => bake(0.4, (oc, d) => clank(oc, d, 0, rnd(650, 1500), 1, rnd(0.12, 0.3)))),
       n(12, () => bake(1.5, (oc, d) => crowdVoice(oc, d, 0, rnd(130, 270), rnd(0.4, 1.3)))),
       n(6, () => bake(0.3, (oc, d) => mass(oc, d), 2)),
-      n(4, () => bake(0.32, (oc, d) => twang(oc, d, false), 1, 0)),
-      n(4, () => bake(0.32, (oc, d) => twang(oc, d, true), 1, 0)),
     ],
   );
   const loops = bakeLoops(B); // the loops only need crowd + clank: render them alongside the rest
