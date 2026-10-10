@@ -73,6 +73,12 @@ test('server hides credentials and disables submissions when unconfigured', asyn
   assert.equal((await fetch(`${base}/.env`)).status, 404);
   assert.equal((await fetch(`${base}/src/server/band.js`)).status, 404);
   assert.equal((await fetch(`${base}/src/server/player-runtime.js`)).status, 404);
+  assert.equal((await fetch(`${base}/src/server/arena-runtime.js`)).status, 404);
+  assert.deepEqual(await (await fetch(`${base}/api/arena/status`)).json(), { roles: { ally: false, boss: false }, hosted: false });
+  const arenaPost = (body, origin) => fetch(`${base}/api/arena/session`, { method: 'POST', headers: { 'content-type': 'application/json', ...(origin ? { origin } : {}) }, body });
+  assert.equal((await arenaPost(JSON.stringify({ roles: ['ally'], model: { source: 'byok', provider: 'openai', model: 'gpt-6-luna', apiKey: 'test-key-123' } }))).status, 503);
+  assert.equal((await arenaPost('{}', 'https://another-site.example')).status, 403);
+  assert.equal((await arenaPost('x'.repeat(10001))).status, 400);
   assert.equal((await fetch(`${base}/src/ai/controller.js`)).status, 200);
   assert.equal((await fetch(`${base}/index.html`)).status, 200);
   assert.equal((await fetch(`${base}/vendor/three/three.module.js`)).status, 200);

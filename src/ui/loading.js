@@ -11,7 +11,7 @@ import { replay } from './menu.js';
 import { difficulty } from '../core/difficulty.js';
 import { resolveChapter } from '../story/chapters.js';
 
-export const MODE = { story: ['Tournament', '1000 challengers · four masters · one title'], free: ['Practice', 'Endless waves · no knock-out'], ai: ['Watch AI Play', 'BAND chooses tactics · you can take over'] };
+export const MODE = { story: ['Tournament', '1000 challengers · four masters · one title'], free: ['Practice', 'Endless waves · no knock-out'], ai: ['Watch AI Play', 'BAND chooses tactics · you can take over'], agents: ['Agent Arena', 'You fight · BAND teammate and villain choose tactics'] };
 // keep in step with the controls table (title.js CONTROLS)
 const TIPS = [
   'Tap J for the full combo; press K mid-combo for a charge finisher — a different one after every hit of the string.',

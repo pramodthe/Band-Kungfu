@@ -159,7 +159,7 @@ export function createStory(game) {
     if (S.mode === 'free') {
       if (game.frame === 185) emit('story:say', { text: h.char.lines.intro, dur: 300 });   // the hero's opening line
       const FN = st.chapter && st.chapter.freeNames;                  // the stage's own names for the arena's lieutenants
-      if (FN) for (let k = 0; k < c.offName.length; k++) if (c.offName[k] && !FN.includes(c.offName[k])) c.offName[k] = FN[k % FN.length];
+      if (FN) for (let k = 0; k < c.offName.length; k++) if (!c.agentRole[c.grunts + k] && c.offName[k] && !FN.includes(c.offName[k])) c.offName[k] = FN[k % FN.length];
       return;
     }
 

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { parseObservation, parseTactic } from '../ai/protocol.js';
+import { createDecisionBudget } from './decision-budget.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function playerConfigured(env = process.env) {
@@ -10,16 +11,17 @@ export function playerConfigured(env = process.env) {
 const setting = (value, fallback, max) => value !== undefined && Number.isInteger(Number(value)) && Number(value) >= 1 && Number(value) <= max ? Number(value) : fallback;
 
 // Independent visitors share one fair, bounded model queue. Inactive tabs do not consume turns.
-export function createPlayerService({ env = process.env, now = Date.now, runtimeFactory = async () => {
+export function createPlayerService({ env = process.env, now = Date.now, budget, runtimeFactory = async () => {
   const { createPlayerRuntime } = await import('./player-runtime.js');
   return createPlayerRuntime(env);
 } } = {}) {
   const sessions = new Map();
   const maxSessions = setting(env.AI_MAX_SESSIONS, env.NODE_ENV === 'production' ? 3 : 1, 20);
   const maxDecisions = setting(env.AI_MAX_DECISIONS_PER_HOUR, 120, 10000);
-  let runtime = null, connecting = null, deciding = false, closed = false, windowAt = now(), decisions = 0;
+  budget ||= createDecisionBudget(maxDecisions, now);
+  let runtime = null, connecting = null, deciding = false, closed = false;
   const expire = () => { for (const [id, s] of sessions) if (now() - s.seen > 30000) sessions.delete(id); };
-  const allowance = () => { if (now() - windowAt >= 3600000) { windowAt = now(); decisions = 0; } return decisions < maxDecisions; };
+  const allowance = () => budget.has();
   const requireSession = (id) => {
     expire();
     const s = sessions.get(id);
@@ -32,7 +34,8 @@ export function createPlayerService({ env = process.env, now = Date.now, runtime
     const s = [...sessions.values()].filter(s => s.observation && now() - s.seen < 3500 && now() - s.lastDecision >= 8000)
       .sort((a, b) => a.lastDecision - b.lastDecision)[0];
     if (!s) return;
-    deciding = true; s.state = 'thinking'; s.lastDecision = now(); decisions++;
+    if (!budget.take()) return;
+    deciding = true; s.state = 'thinking'; s.lastDecision = now();
     const sequence = ++s.sequence, o = s.observation;
     Promise.resolve().then(() => runtime.decide({ id: randomUUID(), observation: o })).then(rawPlan => {
       const plan = parseTactic(rawPlan); expire();

@@ -25,3 +25,15 @@ services:
         sync: false
       - key: OPENAI_API_KEY
         sync: false
+      - key: ALLY_AGENT_ID
+        sync: false
+      - key: ALLY_API_KEY
+        sync: false
+      - key: ALLY_ROOM_ID
+        sync: false
+      - key: BOSS_AGENT_ID
+        sync: false
+      - key: BOSS_API_KEY
+        sync: false
+      - key: BOSS_ROOM_ID
+        sync: false

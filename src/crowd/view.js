@@ -673,7 +673,7 @@ export function createCrowdView(scene, game) {
   }
   function write(i, s, dt) {
     const t = crowd.stT[i], o = i * NCH, officer = crowd.type[i] === 1, kind = crowd.kind[i], g = GROUP[kind];
-    const mkey = officer && game.story.modelOf ? game.story.modelOf(i) : null, om = mkey ? officerModel(mkey) : null;
+    const mkey = crowd.agentModel[i] || (officer && game.story.modelOf ? game.story.modelOf(i) : null), om = mkey ? officerModel(mkey) : null;
     const kneel = !!(om && om.d.kneel && s === ST.DEAD);
     const rate = kneel ? kneelPose() : pose(i, s, t);
     const k = seen[i] ? 1 - Math.exp(-rate * dt) : 1;

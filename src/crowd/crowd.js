@@ -84,6 +84,7 @@ export function createCrowd(game, grunts) {
     foe: I(),                                                   // duel partner (ally ↔ Wei grunt), -1 = none
     via: I(),                                                   // ally: sf left on the road (the straight line was blocked)
     boss: I(), offName: new Array(CROWD.officerSlots).fill(null),   // story: boss flag; officer display names {zh, en}
+    agentRole: new Array(T).fill(null), agentModel: new Array(T).fill(null), agentTarget: I(), agentStep: null,
     waveT: 0, tokensUsed: 0, strikeF: 0, gap: 0, graceF: 0, heroHp: 0, wavesOn: false, engaged: 0, zMax: Infinity,   // zMax: story stage bound (waves)
     alliesOn: false, allyT: 0, front: 0, kosAgo: [0, 0], cheerF: 0, allyKos: 0, allyLost: 0,   // allyKos / allyLost: duel KOs
   };
@@ -112,6 +113,7 @@ export function createCrowd(game, grunts) {
   function setBand(i, k) { c.band[i] = k; c.pref[i] = rng.range(CROWD.bands[k][0], CROWD.bands[k][1]); c.seated[i] = 0; }
 
   c.reset = () => {
+    c.agentRole.fill(null); c.agentModel.fill(null); c.agentStep = null;
     c.offName.fill(null);
     c.st.fill(ST.OFF); c.token.fill(0); c.tokensUsed = 0; c.strikeF = 0; c.gap = 0; c.graceF = 0; c.heroHp = game.hero.hp; c.waveT = 0; c.sq.n = 0; c.wavesOn = false; c.zMax = Infinity;
     c.foe.fill(-1); Object.assign(c, { alliesOn: false, allyT: 0, front: game.cam.yaw, kosAgo: [0, 0], cheerF: 0, allyKos: 0, allyLost: 0 });
@@ -215,6 +217,16 @@ export function createCrowd(game, grunts) {
   /** Shu reinforcement columns on/off (they run up the road while the allies are under strength, see allyColumns()). */
   c.setAllies = (on) => { c.alliesOn = !!on; };
 
+  c.spawnAgent = (role) => {
+    const i = role === 'ally' ? freeSlots(false, true)[0] : freeSlots(true)[0];
+    if (i === undefined) return -1;
+    place(i, game.hero.x + (role === 'ally' ? 3 : -4), game.hero.z + (role === 'ally' ? 3 : 9), true, KIND.OFFICER);
+    c.agentRole[i] = role; c.agentModel[i] = role === 'ally' ? 'crane' : 'dragon';
+    c.type[i] = 1; c.hp[i] = c.hpMax[i] = role === 'ally' ? 400 : 900; c.cd[i] = 30;
+    if (role === 'boss') { c.boss[i] = 1; c.offName[i - grunts] = 'NEMESIS'; }
+    return i;
+  };
+
   /** Nearest alive enemy within maxR whose bearing is within `cone` radians of `yaw`. */
   c.nearest = (x, z, maxR, yaw, cone) => {
     let best = -1, bd = maxR * maxR;
@@ -265,7 +277,8 @@ export function createCrowd(game, grunts) {
       const dx = h.x - c.x[i], dz = h.z - c.z[i], d = Math.hypot(dx, dz) || 1e-6;
       const face = Math.atan2(dx, dz);
       let vx = 0, vz = 0;
-      if ((c.foe[i] >= 0 && duel(i, h)) || (i >= N && ally(i, h))) { vx = mvx; vz = mvz; }
+      if (c.agentRole[i]) { [vx, vz] = c.agentStep?.(i, c.agentRole[i]) || [0, 0]; }
+      else if ((c.foe[i] >= 0 && duel(i, h)) || (i >= N && ally(i, h))) { vx = mvx; vz = mvz; }
       else if (c.form[i]) {
         // in formation: hold / march to the squad slot, facing the squad's heading
         const q = c.squad[i], f = c.sq.face[q], sn = Math.sin(f), cs = Math.cos(f);
@@ -589,7 +602,7 @@ export function createCrowd(game, grunts) {
   }
 
   function rings(h) {
-    const ok = (i) => { const s = c.st[i]; return (s === ST.ADVANCE || s === ST.GUARD || s === ST.ATTACK) && !c.form[i] && c.foe[i] < 0; };
+    const ok = (i) => { const s = c.st[i]; return !c.agentRole[i] && (s === ST.ADVANCE || s === ST.GUARD || s === ST.ATTACK) && !c.form[i] && c.foe[i] < 0; };
     // seat the inner ring: new members take the emptiest slots; up to 4 soldiers from a doubled-up slot move to an
     // empty one per tick (a gap left by a sweep fills from both sides)
     secN.fill(0);
@@ -651,7 +664,7 @@ export function createCrowd(game, grunts) {
     for (let k = 0; k < N; k++) {
       const i = (start + k) % N;
       const s = c.st[i];
-      if ((s !== ST.GUARD && s !== ST.ADVANCE) || c.token[i] || c.cd[i] > 0 || c.form[i] || c.kind[i] === KIND.BEARER || c.foe[i] >= 0) continue;
+      if (c.agentRole[i] || (s !== ST.GUARD && s !== ST.ADVANCE) || c.token[i] || c.cd[i] > 0 || c.form[i] || c.kind[i] === KIND.BEARER || c.foe[i] >= 0) continue;
       const dx = c.x[i] - h.x, dz = c.z[i] - h.z, d = Math.hypot(dx, dz);
       if (d > 4.5) continue;
       const vis = (dx * fx + dz * fz) / (d || 1);             // 1 = straight beyond the hero (hidden behind his body)

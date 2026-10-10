@@ -73,10 +73,11 @@ export function createSelect(el, flow) {
     if (!quiet) sfx('move');
   }
 
-  const go = () => {
+  const go = async () => {
     if (busy) return;
     if (wiping()) return afterWipe(go);             // pressed while this screen is still being uncovered: queued
     busy = true;
+    if (ctx.mode === 'agents' && !await flow.prepareAgents()) { busy = false; return; }
     stamp($('.s-act'), 'GO!');
     const id = CHAR_ORDER[cur], chapter = chaptersFor(id)[0];
     setTimeout(() => inkWipe(() => flow.go('loading', { mode: ctx.mode, char: id, chapter })), 520);

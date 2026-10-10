@@ -40,6 +40,7 @@ import { createTouch } from './ui/touch.js';
 import { createResult } from './story/result.js';
 import { difficulty } from './core/difficulty.js';
 import { createAiPlayer } from './ui/ai-player.js';
+import { createAgentArena } from './ui/agent-arena.js';
 
 const params = new URLSearchParams(location.search);
 // mobile quality tier: coarse pointers get 150 enemies, no MSAA / DoF, half-res bloom; ?hq forces full.
@@ -65,6 +66,7 @@ game.musou = game.hero.kit.createMusou(game);     // the fighter's Overclock (re
 game.story = createStory(game);
 const input = createInput();
 const aiPlayer = createAiPlayer(game);
+const agentArena = createAgentArena(game);
 on('ai:takeover', () => {
   const h = game.hero;
   h.buf = null; h.dodgeBuf = h.jumpBuf = h.musouBuf = 0; // Drop queued AI inputs; the current move follows normal recovery.
@@ -114,6 +116,7 @@ function render(real) {
   musouView.update(dt);
   post.render(scene, camRig.camera, game.frame / 60, camRig.focus, vfx.flash);   // post-fx: DoF focus + screen flash
   hud.update();
+  agentArena.update();
 }
 
 /** New battle: { char: CHARS id, mode: 'story' | 'free', chapter?: CHAPTERS id }. Makes the stage's map active (its
@@ -121,7 +124,8 @@ function render(real) {
  *  frame 0), rebuilds the kit views on a fighter change, lets the story spawn the field. */
 function startBattle({ char = DEFAULT_CHAR, mode = 'story', chapter } = {}) {
   const watch = mode === 'ai';
-  if (watch) mode = 'free';
+  const arena = mode === 'agents';
+  if (watch || arena) mode = 'free';
   aiPlayer.reset(watch);
   const ch = CHARS[char] || CHARS[DEFAULT_CHAR], CH = resolveChapter(chapter, ch.id);
   setMap(CH.map); world.sync();
@@ -135,8 +139,9 @@ function startBattle({ char = DEFAULT_CHAR, mode = 'story', chapter } = {}) {
   if (newKit) buildViews();
   heroView.reset();
   game.story.reset({ mode, char: ch.id, chapter: CH.id });
+  agentArena.reset(arena);
   menu.querySelector('.t').innerHTML = `${ch.name}<i>${ch.role}</i>`;
-  menu.querySelector('.sub').textContent = `Paused · ${watch ? 'Watch AI Play' : mode === 'story' ? 'Tournament' : 'Practice'} · ${game.diff.name}`;
+  menu.querySelector('.sub').textContent = `Paused · ${arena ? 'Agent Arena' : watch ? 'Watch AI Play' : mode === 'story' ? 'Tournament' : 'Practice'} · ${game.diff.name}`;
   menu.style.setProperty('--acc', ch.accent);
   document.title = `${ch.name} — ${GAME_TITLE}`;
   emit('scenario', { mode, char: ch.id, chapter: CH.id });
@@ -179,6 +184,7 @@ const setPaused = (v) => {
   paused = v; menu.hidden = !v; hudEl.hidden = v; input.sample();   // sample(): drop keys pressed on the menu
   if (v && document.pointerLockElement) document.exitPointerLock();
   aiPlayer.pause(v);
+  agentArena.pause(v);
   if (v) { mFocus(0); armQuit(false); mNav.start(); } else mNav.stop();
 };
 function sampleInput() {
@@ -191,6 +197,7 @@ mBtns.forEach((b, i) => {
   b.addEventListener('click', () => { mFocus(i); mOk(); });
 });
 const flow = {
+  prepareAgents: () => agentArena.setup(),
   /** Enter a flow state: 'title' | 'select' | 'loading' | 'battle' | 'result' (ctx: see each screen module). */
   go(s, c = {}) {
     if (s === 'loading' && state === 'select') c.art = arts[c.char] = snapArt();
