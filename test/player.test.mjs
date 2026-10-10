@@ -217,6 +217,75 @@ test('takeover prevents a late model decision from controlling a new session', a
   await service.close();
 });
 
+test('takeover aborts pending provider work and releases the queue for the next player', async () => {
+  const signals = [];
+  const service = createPlayerService({
+    env,
+    runtimeFactory: async () => ({
+      decide: ({ signal }) => {
+        signals.push(signal);
+        if (signals.length > 1) return tactic;
+        return new Promise((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+        });
+      },
+      close() {},
+    }),
+  });
+  const first = await service.start();
+  service.observe(first.id, facts);
+  await flush();
+  service.stop(first.id);
+  assert.equal(signals[0].aborted, true);
+  const second = await service.start();
+  service.observe(second.id, facts);
+  await flush();
+  assert.equal(signals.length, 2);
+  assert.equal(signals[1].aborted, false);
+  assert.deepEqual(service.observe(second.id, facts).tactic, tactic);
+  assert.equal(service.queue.busy, false);
+  await service.close();
+});
+
+test('paused heartbeats survive the idle timeout without decisions, then resume with fresh facts', async () => {
+  let now = 0;
+  const jobs = [];
+  const service = createPlayerService({
+    env,
+    now: () => now,
+    runtimeFactory: async () => ({
+      decide: (job) => {
+        jobs.push(job);
+        return new Promise((_resolve, reject) => {
+          job.signal.addEventListener('abort', () => reject(job.signal.reason), { once: true });
+        });
+      },
+      close() {},
+    }),
+  });
+  const { id } = await service.start();
+  service.observe(id, facts);
+  await flush();
+  assert.throws(
+    () => service.observe(id, facts, 'false'),
+    (error) => error.status === 400,
+  );
+  for (now = 10000; now <= 40000; now += 10000) {
+    const status = service.observe(id, facts, false);
+    assert.equal(status.state, 'paused');
+    assert.equal(status.tactic, null);
+    await flush();
+  }
+  assert.equal(jobs[0].signal.aborted, true);
+  assert.equal(jobs.length, 1);
+  assert.equal(service.queue.busy, false);
+  assert.equal(service.observe(id, { ...facts, frame: 2 }, true).state, 'thinking');
+  await flush();
+  assert.equal(jobs.length, 2);
+  assert.equal(jobs[1].observation.frame, 2);
+  await service.close();
+});
+
 test('disconnected tabs expire and malformed or older observations are rejected', async () => {
   let now = 0;
   const service = createPlayerService({

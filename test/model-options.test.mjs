@@ -30,3 +30,35 @@ test('other configured models retain their original adapter options', () => {
     apiKey: 'test-key',
   });
 });
+
+test('player cancellation and the SDK deadline both reach every model request', async () => {
+  for (const model of ['gpt-6-luna', 'gpt-4.1-mini']) {
+    for (const cancelJob of [true, false]) {
+      const job = new AbortController(),
+        deadline = new AbortController();
+      let received;
+      const options = apiModelOptions(
+        model,
+        'test-key',
+        () => ({
+          chat: {
+            completions: {
+              create: (_params, request) => {
+                received = request;
+              },
+            },
+          },
+        }),
+        () => job.signal,
+      );
+      const client = await options.clientFactory();
+      await client.chat.completions.create({ model }, { signal: deadline.signal, timeout: 25000 });
+      assert.equal(received.timeout, 25000);
+      assert.equal(received.signal.aborted, false);
+      (cancelJob ? job : deadline).abort();
+      assert.equal(received.signal.aborted, true);
+      job.abort();
+      assert.throws(() => client.chat.completions.create({ model }), /abort/i);
+    }
+  }
+});

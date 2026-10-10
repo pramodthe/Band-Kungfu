@@ -7,8 +7,8 @@
 //               state a key does
 //   right half  a drag above the buttons turns the camera (virt.look, rad)
 // While the pad shows, body.pad moves the HUD pieces it would cover. Portrait on a coarse pointer: a card asks for
-// landscape. Render / DOM only — the sim sees input frames.
-// createTouch(virt, game) → { root }
+// landscape. Portrait releases held inputs and asks the flow controller to pause.
+// createTouch(virt, game, pause) → { root, blocked }
 import { on } from '../core/events.js';
 
 const R = 56; // stick radius, px
@@ -23,7 +23,7 @@ const BTNS = [
   ['musou', 'OC', 'b-mu'],
 ];
 
-export function createTouch(virt, game) {
+export function createTouch(virt, game, pause = () => {}) {
   const coarse = matchMedia('(pointer: coarse)'),
     portrait = matchMedia('(orientation: portrait)');
   const root = document.createElement('div');
@@ -147,17 +147,22 @@ export function createTouch(virt, game) {
     rotOn = null;
   const tick = () => {
     requestAnimationFrame(tick);
-    const show = coarse.matches && battle && menu.hidden && !kb;
+    const r = coarse.matches && portrait.matches;
+    if (r && battle && menu.hidden) {
+      release();
+      pause();
+    }
+    const show = coarse.matches && !r && battle && menu.hidden && !kb;
     if (show !== shown) {
       shown = show;
       root.hidden = !show;
       document.body.classList.toggle('pad', show);
       if (!show) release();
     }
-    const r = coarse.matches && portrait.matches;
     if (r !== rotOn) {
       rotOn = r;
       rot.hidden = !r;
+      if (r) release();
     }
     if (!show) return;
     const l = !!(game.musou?.ready?.() && game.hero.state !== 'musou');
@@ -167,5 +172,5 @@ export function createTouch(virt, game) {
     }
   };
   tick();
-  return { root };
+  return { root, blocked: () => coarse.matches && portrait.matches };
 }

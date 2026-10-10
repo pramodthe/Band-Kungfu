@@ -45,6 +45,7 @@ export class PlayerService {
     const session = this.sessions.create({
       lastDecision: -Infinity,
       sequence: 0,
+      active: true,
       plan: null,
       state: 'waiting',
     });
@@ -59,13 +60,21 @@ export class PlayerService {
     }
   }
 
-  observe(id, raw) {
+  observe(id, raw, active = true) {
+    if (typeof active !== 'boolean') throw new HttpError(400, 'Invalid player request');
     const observation = parseObservation(raw);
     const session = this.sessions.get(id);
     if (session.observation && observation.frame < session.observation.frame)
       throw new HttpError(409, 'Stale observation');
     session.observation = observation;
     session.seen = this.now();
+    session.active = active;
+    if (!active) {
+      session.abort?.abort();
+      session.plan = null;
+      session.lastDecision = -Infinity;
+      session.state = 'waiting';
+    }
     this.#pump();
     const remaining = session.plan ? Math.max(0, AI_TIMING.tacticTtlMs - (this.now() - session.planAt)) : 0;
     if (!this.budget.has() && session.state !== 'thinking' && !remaining) {
@@ -74,7 +83,7 @@ export class PlayerService {
     }
     const queued = this.maxSessions > 1 && !remaining && session.state === 'waiting' && this.queue.busy;
     return {
-      state: queued ? 'queued' : session.state,
+      state: !active ? 'paused' : queued ? 'queued' : session.state,
       tactic: remaining ? session.plan : null,
       validForMs: remaining,
       sequence: session.sequence,
@@ -99,6 +108,7 @@ export class PlayerService {
     const session = [...this.sessions.values()]
       .filter(
         (s) =>
+          s.active &&
           s.observation &&
           this.now() - s.seen < AI_TIMING.playerObservationFreshMs &&
           this.now() - s.lastDecision >= AI_TIMING.decisionIntervalMs,
@@ -109,20 +119,34 @@ export class PlayerService {
     session.lastDecision = this.now();
     const sequence = ++session.sequence;
     const observation = session.observation;
-    this.queue.run(() => runtime.decide({ id: randomUUID(), observation }), {
+    const abort = (session.abort = new AbortController());
+    this.queue.run(() => runtime.decide({ id: randomUUID(), observation, signal: abort.signal }), {
       onSuccess: (raw) => {
         const plan = parseTactic(raw);
-        if (this.sessions.owns(session) && session.sequence === sequence) {
+        if (
+          this.sessions.owns(session) &&
+          session.active &&
+          !abort.signal.aborted &&
+          session.sequence === sequence
+        ) {
           session.plan = plan;
           session.planAt = this.now();
           session.state = 'playing';
         }
       },
       onError: () => {
-        if (this.sessions.owns(session)) {
+        if (this.sessions.owns(session) && !abort.signal.aborted) {
           session.plan = null;
           session.state = 'error';
         }
+      },
+      onSettled: () => {
+        if (this.sessions.owns(session) && abort.signal.aborted) {
+          session.plan = null;
+          session.state = 'waiting';
+          session.lastDecision = -Infinity;
+        }
+        if (session.abort === abort) session.abort = null;
       },
     });
   }

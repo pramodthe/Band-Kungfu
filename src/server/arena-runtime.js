@@ -5,7 +5,8 @@ import { PrivateBandRoom } from './private-band-room.js';
 export const PROVIDERS = { openai: 'https://api.openai.com/v1', groq: 'https://api.groq.com/openai/v1' };
 const logger = Object.fromEntries(['debug', 'info', 'warn', 'error'].map((k) => [k, () => {}]));
 
-export async function handleArenaJob(job, tools, decide = chooseArenaTactic) {
+export async function handleArenaJob(job, tools, decide = chooseArenaTactic, mentions = []) {
+  job.delivery = 'skipped';
   // Provider failures can contain key fragments. Keep them out of SDK error reporting and BAND rooms.
   try {
     job.plan = await decide(job);
@@ -13,16 +14,27 @@ export async function handleArenaJob(job, tools, decide = chooseArenaTactic) {
     job.plan = null;
     return;
   }
-  if (!job.signal.aborted) await tools.sendMessage(job.plan.reason).catch(() => {});
+  if (!job.signal.aborted) {
+    try {
+      await tools.sendMessage(job.plan.reason, mentions);
+      job.delivery = 'sent';
+    } catch {
+      job.delivery = 'failed';
+      console.warn('BAND arena tactic summary could not be delivered. Gameplay can continue.');
+    }
+  }
 }
 
-export function arenaAdapter(jobs) {
+export function arenaAdapter(jobs, decide = chooseArenaTactic) {
   return {
     async onStarted() {},
     async onCleanup() {},
     async onEvent(input) {
       const job = jobs.get(input.message.id);
-      if (job && !job.signal.aborted) await handleArenaJob(job, input.tools);
+      if (job && !job.signal.aborted)
+        await handleArenaJob(job, input.tools, decide, [
+          { id: input.message.senderId, handle: input.message.senderName },
+        ]);
     },
   };
 }

@@ -110,14 +110,18 @@ export function createAiPlayer(game) {
   }
   async function poll(current) {
     if (current !== generation || !active || !session) return;
-    if (paused || !battle) {
+    if (!battle) {
       timer = setTimeout(() => poll(current), 1000);
       return;
     }
     if (busy) return;
     busy = true;
     try {
-      const result = await client.post('observe', { id: session.id, observation: observation(game) });
+      const result = await client.post('observe', {
+        id: session.id,
+        observation: observation(game),
+        active: !paused,
+      });
       if (current !== generation || !active) return;
       state = result.state;
       tactic = result.tactic ? parseTactic(result.tactic) : null;
@@ -169,7 +173,12 @@ export function createAiPlayer(game) {
       draw();
     },
     pause(value) {
+      if (paused === value) return;
       paused = value;
+      tactic = null;
+      // Keep the session alive while paused, and cancel/resume provider work promptly.
+      clearTimeout(timer);
+      poll(generation);
       draw();
     },
     sample(human) {

@@ -76,7 +76,6 @@ on('ai:takeover', () => {
   h.buf = null;
   h.dodgeBuf = h.jumpBuf = h.musouBuf = 0; // Drop queued AI inputs; the current move follows normal recovery.
 });
-createTouch(input.virt, game, MOBILE);
 
 // ---- render side
 const crowdView = createCrowdView(scene, game);
@@ -233,6 +232,7 @@ const mNav = createNav(
   { startConfirms: false },
 );
 const setPaused = (v) => {
+  if (!v && state === 'battle' && touch.blocked()) v = true;
   paused = v;
   menu.hidden = !v;
   hudEl.hidden = v;
@@ -246,6 +246,7 @@ const setPaused = (v) => {
     mNav.start();
   } else mNav.stop();
 };
+const touch = createTouch(input.virt, game, () => setPaused(true));
 function sampleInput() {
   const inp = input.sample();
   if (state === 'battle' && inp.pressed.pause && !wiping()) setPaused(!paused);

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createArenaService, parseArenaSettings } from '../src/server/arena.js';
-import { chooseArenaTactic, handleArenaJob, PROVIDERS } from '../src/server/arena-runtime.js';
+import { arenaAdapter, chooseArenaTactic, handleArenaJob, PROVIDERS } from '../src/server/arena-runtime.js';
 import { parseArenaObservation } from '../src/ai/arena-protocol.js';
 import { arenaObservation, executeArenaTactic } from '../src/ai/arena-controller.js';
 import { createCrowd, ST, CROWD } from '../src/crowd/crowd.js';
@@ -363,4 +363,17 @@ test('provider failures cannot reach GenericAdapter error reporting or leak key 
     async () => plan,
   );
   assert.equal(job.plan.goal, 'engage');
+  assert.equal(job.delivery, 'failed');
+});
+
+test('arena summaries mention the private room owner and record successful delivery', async () => {
+  const job = { signal: new AbortController().signal };
+  const sent = [];
+  const adapter = arenaAdapter(new Map([['decision', job]]), async () => plan);
+  await adapter.onEvent({
+    message: { id: 'decision', senderId: 'owner-id', senderName: 'owner-handle' },
+    tools: { sendMessage: async (...args) => sent.push(args) },
+  });
+  assert.deepEqual(sent, [[plan.reason, [{ id: 'owner-id', handle: 'owner-handle' }]]]);
+  assert.equal(job.delivery, 'sent');
 });
