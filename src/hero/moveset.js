@@ -1,5 +1,5 @@
 // Moveset helpers shared by every character kit (src/chars/*/): move-table preparation, lunge and clip retiming.
-// The move-table format is documented at the top of src/hero/moves.js (Zhao Yun's moveset); a kit's table goes through
+// The move-table format is documented at the top of docs/movesets.md; a kit's table goes through
 // prepMoves() once at module load.
 // Dual wield (stage-2b hook): a move may name the striking hand — hand: 'R' (default) | 'L', or [[frame, 'R' | 'L'], …]
 // switching from those move frames on (alternating snips). Render-only: the weapon trail follows that hand's blade.
@@ -9,14 +9,18 @@
  *  table's carried-over clip ids and cut-segment indices. Returns the table. */
 export function prepMoves(MOVES) {
   for (const [id, m] of Object.entries(MOVES)) {
-    m.id = id; m.lunge = m.lunge || []; m.hits = m.hits || [];
+    m.id = id;
+    m.lunge = m.lunge || [];
+    m.hits = m.hits || [];
     m.tell = m.tell ?? (m.hits[0] ? m.hits[0].f[0] : 0);
     if (m.anim) {
-      let clip = id, seg = 0;
+      let clip = id,
+        seg = 0;
       m.anim.forEach((k, i) => {
         if (i && k[0] === m.anim[i - 1][0]) seg++;
         else if (i && k[2] && k[2] !== clip) seg++;
-        clip = k[2] = k[2] || clip; k[3] = seg;
+        clip = k[2] = k[2] || clip;
+        k[3] = seg;
       });
     }
   }
@@ -39,9 +43,10 @@ export function moveClip(m, t) {
   if (!a) return [m.id, t / m.frames, 0];
   let i = 0;
   while (i < a.length - 1 && a[i + 1][0] <= t) i++;
-  const k = a[i], n = a[i + 1];
+  const k = a[i],
+    n = a[i + 1];
   if (!n || n[3] !== k[3] || t <= k[0]) return [k[2], k[1], k[3]];
-  return [k[2], k[1] + (n[1] - k[1]) * (t - k[0]) / (n[0] - k[0]), k[3]];
+  return [k[2], k[1] + ((n[1] - k[1]) * (t - k[0])) / (n[0] - k[0]), k[3]];
 }
 
 /** Striking hand at move frame t: 'R' | 'L' (move.hand, see header). */

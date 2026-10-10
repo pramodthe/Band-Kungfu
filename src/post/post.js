@@ -26,31 +26,75 @@ import { SUN_DIR } from '../world/sky.js';
 const P = {
   // tone curve (Lottes): scene luminance tmMidIn → display tmMidOut, tmContrast = mid slope, tmShoulder < 1 = roll-off
   // reaching 1.0 at tmMax; knee = start of the per-channel shoulder; hotDesat = how fast overflow bleaches to white
-  exposure: 1.3, tmContrast: 3.3, tmShoulder: 0.97, tmMidIn: 0.11, tmMidOut: 0.1, tmMax: 5, knee: 0.75, hotDesat: 0.6,
-  sat: 1.32, lift: 0.002,
-  shadowTint: [0.74, 0.92, 1.28], highTint: [0.98, 1.03, 1.06], tintLo: 0.03, tintHi: 0.4,   // split tone: blue shade, clean cool light (neon keeps its hue)
-  hazeCool: [0.05, 0.1, 0.15], hazeWarm: [0.05, 0.1, 0.15], sunGlow: [0, 0, 0], sunGlowGeo: 0, inscatter: [0, 0, 0], sunBurst: [0, 0, 0], inscatterDist: 60,   // indoors: one haze colour, no sun
-  hazeStart: 9, hazeDensity: 0.006, hazeMax: 0.06, skyHaze: 0.3, skyGain: 0.5, farGain: 0.45,   // light enough that the wall keeps its bricks
-  nearBlur: 26, farBlur: 0.6, bandNear: 1.4, bandFar: 5,          // DoF: CoC in half-res px, bands in metres
-  bloom: 0.75, bloomRadius: 0.1, bloomThreshold: 1.5, bloomKnee: 0.5, bloomCool: 1.5, hdrClamp: 2.5,
-  rays: 0, rayTint: [1.0, 0.7, 0.4], rayDecay: 0.965, rayReach: 0.85,   // god rays: off indoors (gain, colour, falloff per tap, reach)
-  sharpen: 0.35, streak: 0.05, rowNoise: 0.01, ca: 1.3, grain: 0.025, levels: 72, dither: 0.6, vignette: 0.3, bottom: 0.25,
+  exposure: 1.3,
+  tmContrast: 3.3,
+  tmShoulder: 0.97,
+  tmMidIn: 0.11,
+  tmMidOut: 0.1,
+  tmMax: 5,
+  knee: 0.75,
+  hotDesat: 0.6,
+  sat: 1.32,
+  lift: 0.002,
+  shadowTint: [0.74, 0.92, 1.28],
+  highTint: [0.98, 1.03, 1.06],
+  tintLo: 0.03,
+  tintHi: 0.4, // split tone: blue shade, clean cool light (neon keeps its hue)
+  hazeCool: [0.05, 0.1, 0.15],
+  hazeWarm: [0.05, 0.1, 0.15],
+  sunGlow: [0, 0, 0],
+  sunGlowGeo: 0,
+  inscatter: [0, 0, 0],
+  sunBurst: [0, 0, 0],
+  inscatterDist: 60, // indoors: one haze colour, no sun
+  hazeStart: 9,
+  hazeDensity: 0.006,
+  hazeMax: 0.06,
+  skyHaze: 0.3,
+  skyGain: 0.5,
+  farGain: 0.45, // light enough that the wall keeps its bricks
+  nearBlur: 26,
+  farBlur: 0.6,
+  bandNear: 1.4,
+  bandFar: 5, // DoF: CoC in half-res px, bands in metres
+  bloom: 0.75,
+  bloomRadius: 0.1,
+  bloomThreshold: 1.5,
+  bloomKnee: 0.5,
+  bloomCool: 1.5,
+  hdrClamp: 2.5,
+  rays: 0,
+  rayTint: [1.0, 0.7, 0.4],
+  rayDecay: 0.965,
+  rayReach: 0.85, // god rays: off indoors (gain, colour, falloff per tap, reach)
+  sharpen: 0.35,
+  streak: 0.05,
+  rowNoise: 0.01,
+  ca: 1.3,
+  grain: 0.025,
+  levels: 72,
+  dither: 0.6,
+  vignette: 0.3,
+  bottom: 0.25,
 };
 const uName = (k) => 'u' + k[0].toUpperCase() + k.slice(1);
-const pUniforms = () => Object.fromEntries(Object.entries(P).map(([k, v]) => [uName(k), { value: Array.isArray(v) ? new THREE.Vector3(...v) : v }]));
+const pUniforms = () =>
+  Object.fromEntries(
+    Object.entries(P).map(([k, v]) => [uName(k), { value: Array.isArray(v) ? new THREE.Vector3(...v) : v }]),
+  );
 
-const quadVS = /* glsl */`varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+const quadVS = /* glsl */ `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 
 // circle of confusion (half-res px) from view distance: sharp band around the focus plane (hero + the ring around him),
 // strong near-field blur, soft far field
-const COC = /* glsl */`
+const COC = /* glsl */ `
   uniform float uFocus, uNearBlur, uNearScale, uFarBlur, uFarScale, uBandN, uBandF;
   float coc(float d) {
     float fn = max(uFocus - uBandN, 0.4), ff = uFocus + uBandF;
     return max(clamp((fn / d - 1.0) * uNearBlur * uNearScale, 0.0, 12.0), clamp((1.0 - ff / d) * uFarBlur * uFarScale, 0.0, 12.0));
   }`;
 
-const AtmosShader = /* glsl */`
+const AtmosShader = /* glsl */ `
   uniform sampler2D tColor, tDepth; uniform mat4 uProjInv, uCamWorld; uniform vec3 uSunDir, uCamPos;
   uniform vec3 uHazeCool, uHazeWarm, uSunGlow, uInscatter, uSunBurst; uniform float uSunGlowGeo, uSkyGain, uFarGain, uHazeStart, uHazeDensity, uHazeMax, uSkyHaze, uHdrClamp, uInscatterDist;
   varying vec2 vUv;
@@ -83,7 +127,7 @@ const AtmosShader = /* glsl */`
 // Gather DoF (after Gustafsson's single-pass bokeh): golden-angle spiral stretched to a square, so blurred voxels read
 // as soft blocks as in the concept. Every tap spreads by its own CoC; taps behind the centre are clamped to the centre's
 // CoC so a sharp hero never smears onto the blurred background.
-const DofShader = /* glsl */`
+const DofShader = /* glsl */ `
   uniform sampler2D tAtmos; uniform vec2 uTexel;
   varying vec2 vUv;
   ${COC}
@@ -108,7 +152,7 @@ const DofShader = /* glsl */`
 // God rays (half res): radial blur of the sunlit sky toward the sun's screen position. Only sky pixels near the sun
 // feed it, so every silhouette in front of the low sun (towers, walls, ridges, soldiers) cuts a dark shaft into the
 // light. Skipped entirely while the sun is off screen.
-const RaysShader = /* glsl */`
+const RaysShader = /* glsl */ `
   uniform sampler2D tAtmos; uniform vec2 uSunUv, uAspect; uniform float uRayDecay, uRayReach, uTime;
   varying vec2 vUv;
   float src(vec2 uv) {
@@ -126,7 +170,7 @@ const RaysShader = /* glsl */`
     gl_FragColor = vec4(vec3(acc / 36.0), 1.0);
   }`;
 
-const FinalShader = /* glsl */`
+const FinalShader = /* glsl */ `
   uniform sampler2D tSharp, tDof, tBloom, tRays; uniform vec2 uRes; uniform float uTime, uFlash, uRayGain;
   uniform vec3 uRayTint;
   uniform float uExposure, uTmContrast, uTmShoulder, uTmB, uTmC, uKnee, uHotDesat, uSat, uLift, uTintLo, uTintHi, uSharpen, uStreak, uRowNoise, uCa, uGrain, uLevels, uDither, uVignette, uBottom;
@@ -200,30 +244,47 @@ const FinalShader = /* glsl */`
     gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
   }`;
 
-const mat = (fragmentShader, uniforms) => new THREE.ShaderMaterial({ vertexShader: quadVS, fragmentShader, uniforms: { ...pUniforms(), ...uniforms }, depthTest: false, depthWrite: false, toneMapped: false });
+const mat = (fragmentShader, uniforms) =>
+  new THREE.ShaderMaterial({
+    vertexShader: quadVS,
+    fragmentShader,
+    uniforms: { ...pUniforms(), ...uniforms },
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+  });
 const v3 = (a) => new THREE.Vector3(...a);
 
 // mobile tier: dofRT gets the scene straight (no gather), alpha 0 = no foreground spill
-const CopyShader = /* glsl */`uniform sampler2D tAtmos; varying vec2 vUv; void main() { gl_FragColor = vec4(texture2D(tAtmos, vUv).rgb, 0.0); }`;
+const CopyShader = /* glsl */ `uniform sampler2D tAtmos; varying vec2 vUv; void main() { gl_FragColor = vec4(texture2D(tAtmos, vUv).rgb, 0.0); }`;
 
 export function createPost({ canvas, width, height, mobile = false }) {
   const renderer = new THREE.WebGLRenderer({ canvas, powerPreference: 'high-performance' });
-  renderer.shadowMap.enabled = !mobile;             // mobile tier: no shadow pass (half the draw calls)
+  renderer.shadowMap.enabled = !mobile; // mobile tier: no shadow pass (half the draw calls)
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
-  const sceneRT = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: mobile ? 0 : 4, depthTexture: new THREE.DepthTexture(4, 4) });
+  const sceneRT = new THREE.WebGLRenderTarget(4, 4, {
+    type: THREE.HalfFloatType,
+    samples: mobile ? 0 : 4,
+    depthTexture: new THREE.DepthTexture(4, 4),
+  });
   // nearest: the half-res DoF must not average a hero-plane distance with the background behind it
-  const atmosRT = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, depthBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+  const atmosRT = new THREE.WebGLRenderTarget(4, 4, {
+    type: THREE.HalfFloatType,
+    depthBuffer: false,
+    minFilter: THREE.NearestFilter,
+    magFilter: THREE.NearestFilter,
+  });
   const dofRT = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, depthBuffer: false });
   const raysRT = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, depthBuffer: false });
   const bloom = new UnrealBloomPass(new THREE.Vector2(320, 180), P.bloom, P.bloomRadius, P.bloomThreshold);
-  bloom.blendMaterial.visible = false;          // don't add onto dofRT: the final pass adds the bloom to both branches
+  bloom.blendMaterial.visible = false; // don't add onto dofRT: the final pass adds the bloom to both branches
   // prefilter: soft knee instead of a hard cut (no popping), and blue-dominant light (the spear arc, the one cool
   // light in a warm frame) passes at a lower threshold so the arc glows like the concept's without blooming the sand
   const hp = bloom.materialHighPassFilter;
   hp.uniforms.smoothWidth.value = P.bloomKnee;
   hp.uniforms.uCool = { value: P.bloomCool };
-  hp.fragmentShader = /* glsl */`
+  hp.fragmentShader = /* glsl */ `
     uniform sampler2D tDiffuse; uniform float luminosityThreshold, smoothWidth, uCool;
     varying vec2 vUv;
     void main() {
@@ -235,28 +296,78 @@ export function createPost({ canvas, width, height, mobile = false }) {
   // bloom keeps its source's hue (orange fire → orange halo, blue arc → blue halo); the wide mips lean only a little
   // warm, the grade already carries the golden hour. The two widest mips are faint: at full weight a large bright mass
   // (the Musou payoff's dragon + light shards) spread into a screen-wide pale-blue veil; light stays a local glow.
-  bloom.bloomTintColors = [v3([0.95, 1, 1.08]), v3([1, 0.97, 0.93]), v3([0.45, 0.42, 0.39]), v3([0.12, 0.11, 0.1]), v3([0.03, 0.026, 0.023])];
-  const dofU = { uFocus: { value: 7 }, uNearScale: { value: 1 }, uFarScale: { value: 1 }, uBandN: { value: 3 }, uBandF: { value: 5 } };   // shared by dof + final
-  const atmos = new FullScreenQuad(mat(AtmosShader, {
-    tColor: { value: sceneRT.texture }, tDepth: { value: sceneRT.depthTexture },
-    uProjInv: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() },
-    uSunDir: { value: SUN_DIR }, uCamPos: { value: new THREE.Vector3() },
-  }));
-  const dof = new FullScreenQuad(mat(mobile ? CopyShader : DofShader, { tAtmos: { value: atmosRT.texture }, uTexel: { value: new THREE.Vector2() }, ...dofU }));
-  const rays = new FullScreenQuad(mat(RaysShader, { tAtmos: { value: atmosRT.texture }, uSunUv: { value: new THREE.Vector2() }, uAspect: { value: new THREE.Vector2(1, 1) }, uTime: { value: 0 } }));
-  const sunNdc = new THREE.Vector3(), camFwd = new THREE.Vector3();
+  bloom.bloomTintColors = [
+    v3([0.95, 1, 1.08]),
+    v3([1, 0.97, 0.93]),
+    v3([0.45, 0.42, 0.39]),
+    v3([0.12, 0.11, 0.1]),
+    v3([0.03, 0.026, 0.023]),
+  ];
+  const dofU = {
+    uFocus: { value: 7 },
+    uNearScale: { value: 1 },
+    uFarScale: { value: 1 },
+    uBandN: { value: 3 },
+    uBandF: { value: 5 },
+  }; // shared by dof + final
+  const atmos = new FullScreenQuad(
+    mat(AtmosShader, {
+      tColor: { value: sceneRT.texture },
+      tDepth: { value: sceneRT.depthTexture },
+      uProjInv: { value: new THREE.Matrix4() },
+      uCamWorld: { value: new THREE.Matrix4() },
+      uSunDir: { value: SUN_DIR },
+      uCamPos: { value: new THREE.Vector3() },
+    }),
+  );
+  const dof = new FullScreenQuad(
+    mat(mobile ? CopyShader : DofShader, {
+      tAtmos: { value: atmosRT.texture },
+      uTexel: { value: new THREE.Vector2() },
+      ...dofU,
+    }),
+  );
+  const rays = new FullScreenQuad(
+    mat(RaysShader, {
+      tAtmos: { value: atmosRT.texture },
+      uSunUv: { value: new THREE.Vector2() },
+      uAspect: { value: new THREE.Vector2(1, 1) },
+      uTime: { value: 0 },
+    }),
+  );
+  const sunNdc = new THREE.Vector3(),
+    camFwd = new THREE.Vector3();
   // Lottes curve constants: tmMidIn → tmMidOut and tmMax → 1
-  const ta = P.tmContrast, ad = ta * P.tmShoulder, mi = P.tmMidIn, mo = P.tmMidOut, hm = P.tmMax, den = (hm ** ad - mi ** ad) * mo;
-  const fin = new FullScreenQuad(mat(FinalShader, {
-    tSharp: { value: atmosRT.texture }, tDof: { value: dofRT.texture }, tBloom: { value: bloom.renderTargetsHorizontal[0].texture }, tRays: { value: raysRT.texture }, uRayGain: { value: 0 },
-    uRes: { value: new THREE.Vector2(1280, 720) }, uTime: { value: 0 }, uFlash: { value: 0 },
-    uTmB: { value: (hm ** ta * mo - mi ** ta) / den }, uTmC: { value: (hm ** ad * mi ** ta - hm ** ta * mi ** ad * mo) / den }, ...dofU,
-  }));
+  const ta = P.tmContrast,
+    ad = ta * P.tmShoulder,
+    mi = P.tmMidIn,
+    mo = P.tmMidOut,
+    hm = P.tmMax,
+    den = (hm ** ad - mi ** ad) * mo;
+  const fin = new FullScreenQuad(
+    mat(FinalShader, {
+      tSharp: { value: atmosRT.texture },
+      tDof: { value: dofRT.texture },
+      tBloom: { value: bloom.renderTargetsHorizontal[0].texture },
+      tRays: { value: raysRT.texture },
+      uRayGain: { value: 0 },
+      uRes: { value: new THREE.Vector2(1280, 720) },
+      uTime: { value: 0 },
+      uFlash: { value: 0 },
+      uTmB: { value: (hm ** ta * mo - mi ** ta) / den },
+      uTmC: { value: (hm ** ad * mi ** ta - hm ** ta * mi ** ad * mo) / den },
+      ...dofU,
+    }),
+  );
 
   function setSize(w, h) {
     renderer.setSize(w, h, false);
-    const hw = Math.round(w / 2), hh = Math.round(h / 2);
-    sceneRT.setSize(w, h); atmosRT.setSize(w, h); dofRT.setSize(hw, hh); raysRT.setSize(hw, hh);
+    const hw = Math.round(w / 2),
+      hh = Math.round(h / 2);
+    sceneRT.setSize(w, h);
+    atmosRT.setSize(w, h);
+    dofRT.setSize(hw, hh);
+    raysRT.setSize(hw, hh);
     rays.material.uniforms.uAspect.value.set(w / h, 1);
     bloom.setSize(mobile ? Math.round(hw / 2) : hw, mobile ? Math.round(hh / 2) : hh);
     fin.material.uniforms.uRes.value.set(w, h);
@@ -267,13 +378,21 @@ export function createPost({ canvas, width, height, mobile = false }) {
   // quality tier: sustained frames over budget (EMA > 20 ms for 2 s) step the scene MSAA 4× → 2× → off. Never steps
   // back up (no oscillation). ?hq pins full quality (captures).
   const autoQ = !new URLSearchParams(location.search).has('hq');
-  let lastT = 0, ema = 16.7, slow = 0;
+  let lastT = 0,
+    ema = 16.7,
+    slow = 0;
   function tier(now) {
-    const dt = lastT ? now - lastT : 16.7; lastT = now;
-    if (!autoQ || dt > 250 || sceneRT.samples === 0) return;              // a long stall (tab hidden, compile) isn't load
+    const dt = lastT ? now - lastT : 16.7;
+    lastT = now;
+    if (!autoQ || dt > 250 || sceneRT.samples === 0) return; // a long stall (tab hidden, compile) isn't load
     ema += (dt - ema) * 0.05;
     slow = ema > 20 ? slow + 1 : 0;
-    if (slow > 120) { sceneRT.samples = sceneRT.samples > 2 ? 2 : 0; sceneRT.dispose(); slow = 0; ema = 16.7; }
+    if (slow > 120) {
+      sceneRT.samples = sceneRT.samples > 2 ? 2 : 0;
+      sceneRT.dispose();
+      slow = 0;
+      ema = 16.7;
+    }
   }
 
   return {
@@ -283,7 +402,7 @@ export function createPost({ canvas, width, height, mobile = false }) {
      *  second into the battle stalled it there). */
     compile(scene, camera) {
       renderer.setRenderTarget(sceneRT);
-      const p = renderer.compileAsync(scene, camera);             // programs are chosen synchronously, in this call
+      const p = renderer.compileAsync(scene, camera); // programs are chosen synchronously, in this call
       renderer.setRenderTarget(null);
       return p;
     },
@@ -298,15 +417,19 @@ export function createPost({ canvas, width, height, mobile = false }) {
       a.uProjInv.value.copy(camera.projectionMatrixInverse);
       a.uCamWorld.value.copy(camera.matrixWorld);
       a.uCamPos.value.copy(camera.position);
-      renderer.setRenderTarget(atmosRT); atmos.render(renderer);
+      renderer.setRenderTarget(atmosRT);
+      atmos.render(renderer);
 
       const f = camera.position.distanceTo(focus);
       const u = dof.material.uniforms;
-      u.uFarScale.value = THREE.MathUtils.clamp(7 / f, 1, 3);   // close-ups: stronger background bokeh
-      u.uNearScale.value = THREE.MathUtils.clamp(8 / f, 0.25, 1);   // wide/high shots: no tilt-shift miniature at the bottom
-      u.uFocus.value = f; u.uBandN.value = Math.max(P.bandNear, f * 0.22); u.uBandF.value = Math.max(P.bandFar, f * 0.6);
-      if (mobile) u.uNearScale.value = u.uFarScale.value = 0;      // mobile tier: CoC 0 everywhere (all sharp)
-      renderer.setRenderTarget(dofRT); dof.render(renderer);
+      u.uFarScale.value = THREE.MathUtils.clamp(7 / f, 1, 3); // close-ups: stronger background bokeh
+      u.uNearScale.value = THREE.MathUtils.clamp(8 / f, 0.25, 1); // wide/high shots: no tilt-shift miniature at the bottom
+      u.uFocus.value = f;
+      u.uBandN.value = Math.max(P.bandNear, f * 0.22);
+      u.uBandF.value = Math.max(P.bandFar, f * 0.6);
+      if (mobile) u.uNearScale.value = u.uFarScale.value = 0; // mobile tier: CoC 0 everywhere (all sharp)
+      renderer.setRenderTarget(dofRT);
+      dof.render(renderer);
 
       bloom.render(renderer, null, dofRT, 1 / 60, false);
 
@@ -315,16 +438,25 @@ export function createPost({ canvas, width, height, mobile = false }) {
       sunNdc.copy(SUN_DIR).multiplyScalar(800).add(camera.position).project(camera);
       const facing = camera.getWorldDirection(camFwd).dot(SUN_DIR);
       const off = Math.max(Math.abs(sunNdc.x), Math.abs(sunNdc.y));
-      const rg = !mobile && facing > 0 ? P.rays * THREE.MathUtils.smoothstep(facing, 0.2, 0.6) * (1 - THREE.MathUtils.smoothstep(off, 1.0, 1.8)) : 0;
+      const rg =
+        !mobile && facing > 0
+          ? P.rays *
+            THREE.MathUtils.smoothstep(facing, 0.2, 0.6) *
+            (1 - THREE.MathUtils.smoothstep(off, 1.0, 1.8))
+          : 0;
       g.uRayGain.value = rg;
       if (rg > 0) {
         const ru = rays.material.uniforms;
-        ru.uSunUv.value.set(sunNdc.x * 0.5 + 0.5, sunNdc.y * 0.5 + 0.5); ru.uTime.value = time;
-        renderer.setRenderTarget(raysRT); rays.render(renderer);
+        ru.uSunUv.value.set(sunNdc.x * 0.5 + 0.5, sunNdc.y * 0.5 + 0.5);
+        ru.uTime.value = time;
+        renderer.setRenderTarget(raysRT);
+        rays.render(renderer);
       }
 
-      g.uTime.value = time; g.uFlash.value = flash;
-      renderer.setRenderTarget(null); fin.render(renderer);
+      g.uTime.value = time;
+      g.uFlash.value = flash;
+      renderer.setRenderTarget(null);
+      fin.render(renderer);
     },
   };
 }

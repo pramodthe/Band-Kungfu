@@ -13,43 +13,93 @@ import { inkWipe, afterWipe, createNav } from '../ui/menu.js';
 const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 export function createResult(el, flow) {
-  let ctx = {}, raf = 0, gone = false, visit = 0, sending = false;
+  let ctx = {},
+    raf = 0,
+    gone = false,
+    visit = 0,
+    sending = false;
   // one exit per visit; pressed while this screen is still being uncovered it is queued (afterWipe), not dropped
-  const leave = (mid) => { if (!gone) { gone = true; afterWipe(() => inkWipe(mid)); } };
+  const leave = (mid) => {
+    if (!gone) {
+      gone = true;
+      afterWipe(() => inkWipe(mid));
+    }
+  };
   async function sendToBand() {
     if (sending || gone) return;
-    const current = visit, button = el.querySelector('[data-act="band"]'), status = el.querySelector('.rs-band-status');
-    sending = true; button.disabled = true; status.textContent = 'Sending run summary to BAND…';
+    const current = visit,
+      button = el.querySelector('[data-act="band"]'),
+      status = el.querySelector('.rs-band-status');
+    sending = true;
+    button.disabled = true;
+    status.textContent = 'Sending run summary to BAND…';
     try {
       const response = await fetch('./api/band/session', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ win: ctx.win, char: ctx.char, chapter: ctx.chapter || 'championship',
-          diff: ctx.diff?.id, stats: ctx.stats }),
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          win: ctx.win,
+          char: ctx.char,
+          chapter: ctx.chapter || 'championship',
+          diff: ctx.diff?.id,
+          stats: ctx.stats,
+        }),
       });
       if (!response.ok) throw new Error('Send failed');
-      if (current === visit && !gone) { button.textContent = 'Sent to BAND'; status.textContent = 'Analyst response will appear in your BAND room.'; }
+      if (current === visit && !gone) {
+        button.textContent = 'Sent to BAND';
+        status.textContent = 'Analyst response will appear in your BAND room.';
+      }
     } catch {
-      if (current === visit && !gone) { button.disabled = false; status.textContent = 'Could not send. Check BAND setup and try again.'; }
-    } finally { if (current === visit) sending = false; }
+      if (current === visit && !gone) {
+        button.disabled = false;
+        status.textContent = 'Could not send. Check BAND setup and try again.';
+      }
+    } finally {
+      if (current === visit) sending = false;
+    }
   }
   el.addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
-    if (b.dataset.act === 'band') { sendToBand(); return; }
-    if (b.dataset.act === 'retry') leave(() => flow.go('loading', { mode: ctx.mode, char: ctx.char, chapter: ctx.chapter, art: ctx.art, retry: true }));
+    if (b.dataset.act === 'band') {
+      sendToBand();
+      return;
+    }
+    if (b.dataset.act === 'retry')
+      leave(() =>
+        flow.go('loading', {
+          mode: ctx.mode,
+          char: ctx.char,
+          chapter: ctx.chapter,
+          art: ctx.art,
+          retry: true,
+        }),
+      );
     else leave(() => flow.go('title'));
   });
   const nav = createNav({
-    move: (d) => { const bs = [...el.querySelectorAll('button:not([hidden]):not(:disabled)')], i = bs.indexOf(document.activeElement); bs[(i + d + bs.length) % bs.length]?.focus(); },
+    move: (d) => {
+      const bs = [...el.querySelectorAll('button:not([hidden]):not(:disabled)')],
+        i = bs.indexOf(document.activeElement);
+      bs[(i + d + bs.length) % bs.length]?.focus();
+    },
     ok: () => (el.querySelector('button:focus') || el.querySelector('button'))?.click(),
     back: () => leave(() => flow.go('title')),
   });
 
   return {
     enter(c) {
-      ctx = c; gone = false; sending = false; const current = ++visit;
-      const { win, stats: s } = c, ch = CHARS[c.char] || CHARS[DEFAULT_CHAR], CH = resolveChapter(c.chapter, ch.id), E = CH.EPILOGUE || {};
-      const epi = E[ch.id] || Object.values(E)[0] || [], T = CH.title;
+      ctx = c;
+      gone = false;
+      sending = false;
+      const current = ++visit;
+      const { win, stats: s } = c,
+        ch = CHARS[c.char] || CHARS[DEFAULT_CHAR],
+        CH = resolveChapter(c.chapter, ch.id),
+        E = CH.EPILOGUE || {};
+      const epi = E[ch.id] || Object.values(E)[0] || [],
+        T = CH.title;
       const lose = (CH.DEFEAT || '{name} is knocked out.').replace('{name}', ch.name);
       const rows = [
         ['K.O. count', s.kos, (v) => v],
@@ -69,9 +119,11 @@ export function createResult(el, flow) {
           ${win && s.rank ? `<div class="rs-rank r${s.rank}"><span>Rank</span><b>${s.rank}</b></div>` : ''}
         </div>
         <div class="rs-epi">${win ? epi.map((l) => `<p>${l}</p>`).join('') : `<p>${lose}</p>`}</div>
-        <div class="rs-btns">${win
-          ? '<button data-act="title">Continue</button>'
-          : '<button data-act="retry">Retry</button><button data-act="title" class="sub">Title</button>'}
+        <div class="rs-btns">${
+          win
+            ? '<button data-act="title">Continue</button>'
+            : '<button data-act="retry">Retry</button><button data-act="title" class="sub">Title</button>'
+        }
           <button data-act="band" class="sub" hidden>Send run to BAND</button></div>
         <p class="rs-band-status" role="status" aria-live="polite"></p>
       </div>
@@ -79,7 +131,8 @@ export function createResult(el, flow) {
         <span><kbd>Enter</kbd>Confirm</span><span><kbd>Esc</kbd>Title</span></footer>`;
       paintPortrait(el.querySelector('canvas'), ch);
       // tallies count up in turn (0.7 s each, 0.35 s apart, after the title lands)
-      const tds = [...el.querySelectorAll('.rs-stats td')], t0 = performance.now() + 700;
+      const tds = [...el.querySelectorAll('.rs-stats td')],
+        t0 = performance.now() + 700;
       const tick = (now) => {
         let busy = false;
         rows.forEach(([, v, fmt], i) => {
@@ -90,12 +143,22 @@ export function createResult(el, flow) {
         if (busy) raf = requestAnimationFrame(tick);
       };
       raf = requestAnimationFrame(tick);
-      setTimeout(() => { if (!el.hidden) el.querySelector('button')?.focus({ preventScroll: true }); }, 50);
+      setTimeout(() => {
+        if (!el.hidden) el.querySelector('button')?.focus({ preventScroll: true });
+      }, 50);
       nav.start();
-      fetch('./api/band/status', { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).then((s) => {
-        if (current === visit && !gone && s?.configured) el.querySelector('[data-act="band"]').hidden = false;
-      }).catch(() => {});
+      fetch('./api/band/status', { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((s) => {
+          if (current === visit && !gone && s?.configured)
+            el.querySelector('[data-act="band"]').hidden = false;
+        })
+        .catch(() => {});
     },
-    exit() { ++visit; cancelAnimationFrame(raf); nav.stop(); },
+    exit() {
+      ++visit;
+      cancelAnimationFrame(raf);
+      nav.stop();
+    },
   };
 }

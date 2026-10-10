@@ -2,16 +2,28 @@
   "name": "band-kungfu",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.9.0 <23" },
+  "engines": {
+    "node": ">=22.13.0 <23"
+  },
   "description": "Band Kungfu, a browser based voxel crowd brawler with BAND AI spectator play and an optional run analyst.",
   "scripts": {
     "start": "node --env-file-if-exists=.env serve.mjs",
     "band:analyst": "node --env-file-if-exists=.env agents/analyst.mjs",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "lint": "eslint src agents test serve.mjs eslint.config.js",
+    "format": "prettier --write src agents test serve.mjs index.html package.json eslint.config.js .prettierrc.json README.md docs .github render.yaml",
+    "format:check": "prettier --check src agents test serve.mjs index.html package.json eslint.config.js .prettierrc.json README.md docs .github render.yaml",
+    "check": "npm run lint && npm run format:check && npm test"
   },
   "dependencies": {
     "@band-ai/sdk": "^0.6.0",
     "openai": "^7.30.0",
     "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.9"
   }
 }

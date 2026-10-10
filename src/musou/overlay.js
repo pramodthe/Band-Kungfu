@@ -9,8 +9,13 @@ export const ramp = (t, a, b) => clamp(inverseLerp(a, b, t), 0, 1);
 
 /** sub: the move's name, seal: the tag chip text, css: { big, sub, seal } = the kit's colour / glow of the three. */
 export function createOverlay({ sub, seal, css }) {
-  const layer = (blend) => { const d = document.createElement('div'); d.style.cssText = `position:fixed;inset:0;pointer-events:none;opacity:0;display:none;mix-blend-mode:${blend}`; return d; };
-  const dim = layer('multiply'), wash = layer('screen');
+  const layer = (blend) => {
+    const d = document.createElement('div');
+    d.style.cssText = `position:fixed;inset:0;pointer-events:none;opacity:0;display:none;mix-blend-mode:${blend}`;
+    return d;
+  };
+  const dim = layer('multiply'),
+    wash = layer('screen');
   (document.getElementById('c') || document.body.firstChild).after(dim, wash);
   const style = document.createElement('style');
   style.textContent = `
@@ -28,22 +33,40 @@ export function createOverlay({ sub, seal, css }) {
   cutEl.innerHTML = `<div class="seal">${seal}</div><div class="big">Overclock</div><div class="sub">${sub}</div>`;
   document.body.appendChild(cutEl);
   const [cutSeal, cutBig, cutSub] = cutEl.children;
-  const setStyle = (el, k, v) => { if (el.style[k] !== v) el.style[k] = v; };
-  const show = (el, v) => { setStyle(el, 'display', v > 0 ? 'block' : 'none'); setStyle(el, 'opacity', v.toFixed(3)); };   // unused layers leave the compositor
+  const setStyle = (el, k, v) => {
+    if (el.style[k] !== v) el.style[k] = v;
+  };
+  const show = (el, v) => {
+    setStyle(el, 'display', v > 0 ? 'block' : 'none');
+    setStyle(el, 'opacity', v.toFixed(3));
+  }; // unused layers leave the compositor
   return {
-    dim, wash, setStyle, show,
+    dim,
+    wash,
+    setStyle,
+    show,
     /** Cut-in at Overclock frame t (t0 = its first frame): k = opacity, st = the slam-in 0..1; the chip stamps at
      *  t0 + 8..12, the move name fades in over t0 + 10..20. */
     cut(t, t0, k, st) {
       show(cutEl, k);
       if (k <= 0) return;
       const se = ramp(t, t0 + 8, t0 + 12);
-      setStyle(cutBig, 'transform', `scale(${(1.6 - 0.6 * st * st).toFixed(3)}) translateX(${((t - t0) * -0.08).toFixed(2)}vh) skewX(-6deg)`);
+      setStyle(
+        cutBig,
+        'transform',
+        `scale(${(1.6 - 0.6 * st * st).toFixed(3)}) translateX(${((t - t0) * -0.08).toFixed(2)}vh) skewX(-6deg)`,
+      );
       setStyle(cutSeal, 'transform', `scale(${(2.2 - 1.2 * se).toFixed(3)})`);
       setStyle(cutSeal, 'opacity', se.toFixed(3));
       setStyle(cutSub, 'opacity', ramp(t, t0 + 10, t0 + 20).toFixed(3));
     },
-    hide() { show(dim, 0); show(wash, 0); show(cutEl, 0); },
-    dispose() { for (const el of [dim, wash, style, cutEl]) el.remove(); },
+    hide() {
+      show(dim, 0);
+      show(wash, 0);
+      show(cutEl, 0);
+    },
+    dispose() {
+      for (const el of [dim, wash, style, cutEl]) el.remove();
+    },
   };
 }

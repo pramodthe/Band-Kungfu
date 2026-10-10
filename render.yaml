@@ -5,16 +5,16 @@ services:
     plan: free
     region: singapore
     branch: codex/public-hosting
-    buildCommand: npm ci && npm test
+    buildCommand: npm ci --include=dev && npm run check && npm prune --omit=dev
     startCommand: npm start
     healthCheckPath: /healthz
     envVars:
       - key: NODE_ENV
         value: production
       - key: AI_MAX_SESSIONS
-        value: "3"
+        value: '3'
       - key: AI_MAX_DECISIONS_PER_HOUR
-        value: "120"
+        value: '120'
       - key: BAND_MODEL
         value: gpt-6-luna
       - key: PLAYER_AGENT_ID
@@ -24,4 +24,16 @@ services:
       - key: PLAYER_ROOM_ID
         sync: false
       - key: OPENAI_API_KEY
+        sync: false
+      - key: ALLY_AGENT_ID
+        sync: false
+      - key: ALLY_API_KEY
+        sync: false
+      - key: ALLY_ROOM_ID
+        sync: false
+      - key: BOSS_AGENT_ID
+        sync: false
+      - key: BOSS_API_KEY
+        sync: false
+      - key: BOSS_ROOM_ID
         sync: false

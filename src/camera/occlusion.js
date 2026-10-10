@@ -6,12 +6,17 @@ import { ground, clampWalk } from '../world/map.js';
  * (a C6 boulder, a KO burst) never blacks out the frame. Chains with an earlier onBeforeCompile (works instanced).
  */
 export function lensClear(material, near = 2) {
-  const prev = material.onBeforeCompile, key = material.customProgramCacheKey() + '|lens' + near;
+  const prev = material.onBeforeCompile,
+    key = material.customProgramCacheKey() + '|lens' + near;
   material.onBeforeCompile = function (shader, renderer) {
     prev.call(this, shader, renderer);
-    shader.vertexShader = shader.vertexShader.replace('void main() {', 'varying float vLensD;\nvoid main() {')
+    shader.vertexShader = shader.vertexShader
+      .replace('void main() {', 'varying float vLensD;\nvoid main() {')
       .replace('#include <project_vertex>', '#include <project_vertex>\n  vLensD = -mvPosition.z;');
-    shader.fragmentShader = shader.fragmentShader.replace('void main() {', `varying float vLensD;\nvoid main() {\n  if (vLensD < ${near.toFixed(2)}) discard;`);
+    shader.fragmentShader = shader.fragmentShader.replace(
+      'void main() {',
+      `varying float vLensD;\nvoid main() {\n  if (vLensD < ${near.toFixed(2)}) discard;`,
+    );
   };
   material.customProgramCacheKey = () => key;
   material.needsUpdate = true;
@@ -30,7 +35,10 @@ export function lensClear(material, near = 2) {
  */
 export function clearance(fx, fy, fz, cx, cy, cz, n = 10, slack = 3, floor = 0.35) {
   for (let i = 1; i <= n; i++) {
-    const t = i / n, x = fx + (cx - fx) * t, z = fz + (cz - fz) * t, y = fy + (cy - fy) * t;
+    const t = i / n,
+      x = fx + (cx - fx) * t,
+      z = fz + (cz - fz) * t,
+      y = fy + (cy - fy) * t;
     const w = clampWalk(x, z, -slack);
     if (Math.abs(w[0] - x) + Math.abs(w[1] - z) > 0.01 || y < ground(x, z) + floor) return (i - 1) / n;
   }
